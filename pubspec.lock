@@ -154,7 +154,7 @@ packages:
     source: hosted
     version: "2.2.0"
   ffmpeg_kit_flutter_new_min:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: ffmpeg_kit_flutter_new_min
       sha256: "15640bf8f177c5c3169a07490635ec0e2fe3816aeb31813eaa747ef0fbd271a6"
@@ -739,7 +739,7 @@ packages:
     source: hosted
     version: "1.4.0"
   universal_io:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: universal_io
       sha256: f63cbc48103236abf48e345e07a03ce5757ea86285ed313a6a032596ed9301e2
@@ -805,19 +805,10 @@ packages:
   whisper_ggml_plus:
     dependency: "direct main"
     description:
-      name: whisper_ggml_plus
-      sha256: "1730d475bd18404aac62b468e42031980a442f76d59c5083cea4ee9bc81c2345"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
+      path: whisper_ggml_plus
+      relative: true
+    source: path
     version: "1.4.1"
-  whisper_ggml_plus_ffmpeg:
-    dependency: "direct main"
-    description:
-      name: whisper_ggml_plus_ffmpeg
-      sha256: "29224753c76822b09b8ef69391ae218f8df5b8db82ec32b6d43173df01782383"
-      url: "https://pub.flutter-io.cn"
-    source: hosted
-    version: "1.0.0"
   win32:
     dependency: transitive
     description:

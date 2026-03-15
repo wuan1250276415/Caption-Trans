@@ -1,7 +1,9 @@
+import 'dart:io';
+
+import 'package:caption_trans/converter/ffmpeg_macos.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
-import 'package:whisper_ggml_plus_ffmpeg/whisper_ggml_plus_ffmpeg.dart';
 import 'blocs/transcription/transcription_bloc.dart';
 import 'blocs/translation/translation_bloc.dart';
 import 'package:caption_trans/l10n/app_localizations.dart';
@@ -15,7 +17,9 @@ void main() async {
   // Register FFmpeg converter for automatic video/audio format conversion.
   // This uses the ffmpeg_kit library internally (no subprocess),
   // so it works within the macOS sandbox.
-  WhisperFFmpegConverter.register();
+  if (Platform.isMacOS) {
+    FFmpegMacOsConverter.register();
+  }
 
   runApp(CaptionTransApp(settingsService: settingsService));
 }
@@ -80,9 +84,7 @@ class _CaptionTransAppState extends State<CaptionTransApp> {
         elevation: 0,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(16),
-          side: BorderSide(
-            color: Colors.white.withValues(alpha: 0.08),
-          ),
+          side: BorderSide(color: Colors.white.withValues(alpha: 0.08)),
         ),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
@@ -102,9 +104,7 @@ class _CaptionTransAppState extends State<CaptionTransApp> {
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: BorderSide(
-            color: Colors.white.withValues(alpha: 0.1),
-          ),
+          borderSide: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
