@@ -1,17 +1,64 @@
+import 'package:caption_trans/l10n/app_localizations.dart';
+
+/// Information about a Whisper model.
+class WhisperModelInfo {
+  final String name;
+  final String diskUsage;
+  final String memoryUsage;
+  final String Function(AppLocalizations) quality;
+
+  const WhisperModelInfo({
+    required this.name,
+    required this.diskUsage,
+    required this.memoryUsage,
+    required this.quality,
+  });
+}
+
 /// Application-wide constants.
 class AppConstants {
   AppConstants._();
 
   static const String appName = 'Caption Trans';
 
-  /// Supported Whisper models with their approximate sizes.
-  static const Map<String, String> whisperModels = {
-    'tiny': 'Tiny (~75 MB)',
-    'base': 'Base (~148 MB)',
-    'small': 'Small (~488 MB)',
-    'medium': 'Medium (~1.5 GB)',
-    'large-v3': 'Large V3 (~3 GB)',
-    'large-v3-turbo': 'Large V3 Turbo (~1.6 GB)',
+  /// Supported Whisper models with detailed information.
+  static final Map<String, WhisperModelInfo> whisperModels = {
+    'tiny': WhisperModelInfo(
+      name: 'tiny',
+      diskUsage: '~75 MB',
+      memoryUsage: '~273 MB',
+      quality: (l) => l.qualityLow,
+    ),
+    'base': WhisperModelInfo(
+      name: 'base',
+      diskUsage: '~142 MB',
+      memoryUsage: '~388 MB',
+      quality: (l) => l.qualityBasic,
+    ),
+    'small': WhisperModelInfo(
+      name: 'small',
+      diskUsage: '~466 MB',
+      memoryUsage: '~852 MB',
+      quality: (l) => l.qualityGood,
+    ),
+    'medium': WhisperModelInfo(
+      name: 'medium',
+      diskUsage: '~1.5 GB',
+      memoryUsage: '~2.1 GB',
+      quality: (l) => l.qualityExcellent,
+    ),
+    'large-v3-turbo': WhisperModelInfo(
+      name: 'large-v3-turbo',
+      diskUsage: '~1.5 GB',
+      memoryUsage: '~2.0 GB',
+      quality: (l) => l.qualitySuperior,
+    ),
+    'large': WhisperModelInfo(
+      name: 'large',
+      diskUsage: '~2.9 GB',
+      memoryUsage: '~3.9 GB',
+      quality: (l) => l.qualityBest,
+    ),
   };
 
   static const String defaultWhisperModel = 'base';

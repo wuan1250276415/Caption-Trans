@@ -182,6 +182,60 @@ abstract class AppLocalizations {
   /// **'Whisper Model'**
   String get whisperModel;
 
+  /// No description provided for @diskUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Disk Usage'**
+  String get diskUsage;
+
+  /// No description provided for @memoryUsage.
+  ///
+  /// In en, this message translates to:
+  /// **'Memory/VRAM Usage'**
+  String get memoryUsage;
+
+  /// No description provided for @transcriptionQuality.
+  ///
+  /// In en, this message translates to:
+  /// **'Transcription Quality'**
+  String get transcriptionQuality;
+
+  /// No description provided for @qualityLow.
+  ///
+  /// In en, this message translates to:
+  /// **'Low'**
+  String get qualityLow;
+
+  /// No description provided for @qualityBasic.
+  ///
+  /// In en, this message translates to:
+  /// **'Basic'**
+  String get qualityBasic;
+
+  /// No description provided for @qualityGood.
+  ///
+  /// In en, this message translates to:
+  /// **'Good'**
+  String get qualityGood;
+
+  /// No description provided for @qualityExcellent.
+  ///
+  /// In en, this message translates to:
+  /// **'Excellent'**
+  String get qualityExcellent;
+
+  /// No description provided for @qualitySuperior.
+  ///
+  /// In en, this message translates to:
+  /// **'Superior (Recommended)'**
+  String get qualitySuperior;
+
+  /// No description provided for @qualityBest.
+  ///
+  /// In en, this message translates to:
+  /// **'Best'**
+  String get qualityBest;
+
   /// No description provided for @extract.
   ///
   /// In en, this message translates to:

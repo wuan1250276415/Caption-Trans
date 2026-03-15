@@ -51,6 +51,33 @@ class AppLocalizationsEn extends AppLocalizations {
   String get whisperModel => 'Whisper Model';
 
   @override
+  String get diskUsage => 'Disk Usage';
+
+  @override
+  String get memoryUsage => 'Memory/VRAM Usage';
+
+  @override
+  String get transcriptionQuality => 'Transcription Quality';
+
+  @override
+  String get qualityLow => 'Low';
+
+  @override
+  String get qualityBasic => 'Basic';
+
+  @override
+  String get qualityGood => 'Good';
+
+  @override
+  String get qualityExcellent => 'Excellent';
+
+  @override
+  String get qualitySuperior => 'Superior (Recommended)';
+
+  @override
+  String get qualityBest => 'Best';
+
+  @override
   String get extract => 'Extract';
 
   @override

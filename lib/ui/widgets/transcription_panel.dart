@@ -53,13 +53,21 @@ class TranscriptionPanel extends StatelessWidget {
                         .map(
                           (e) => DropdownMenuItem(
                             value: e.key,
-                            child: Text(
-                              e.value,
-                              style: const TextStyle(fontSize: 14),
-                            ),
+                            child: _buildModelMenuItem(context, e.value, l10n),
                           ),
                         )
                         .toList(),
+                    selectedItemBuilder: (context) {
+                      return AppConstants.whisperModels.entries.map((e) {
+                        return Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            e.key,
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        );
+                      }).toList();
+                    },
                     onChanged: _isProcessing
                         ? null
                         : (v) {
@@ -216,6 +224,55 @@ class TranscriptionPanel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildModelMenuItem(
+    BuildContext context,
+    WhisperModelInfo info,
+    AppLocalizations l10n,
+  ) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        children: [
+          SizedBox(
+            width: 80,
+            child: Text(
+              info.name,
+              style: const TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 13,
+              ),
+            ),
+          ),
+          _buildModelSpecColumn(l10n.diskUsage, info.diskUsage),
+          _buildModelSpecColumn(l10n.memoryUsage, info.memoryUsage),
+          _buildModelSpecColumn(l10n.transcriptionQuality, info.quality(l10n)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildModelSpecColumn(String label, String value) {
+    return Expanded(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            label,
+            style: TextStyle(
+              fontSize: 10,
+              color: Colors.white.withValues(alpha: 0.5),
+            ),
+          ),
+          Text(
+            value,
+            style: const TextStyle(fontSize: 12),
+          ),
+        ],
+      ),
     );
   }
 }
