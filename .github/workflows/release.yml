@@ -80,18 +80,23 @@ jobs:
         run: |
           $APP_NAME = "caption_trans"
           $WORKSPACE = "${{ github.workspace }}"
-          $BUILD_OUTPUT = Join-Path $WORKSPACE "build\windows\x64\runner\Release"
-          $ZIP_NAME = Join-Path $WORKSPACE "${APP_NAME}-windows-x64.zip"
           
-          Write-Host "Checking for build output at: $BUILD_OUTPUT"
+          Write-Host "Searching for the executable in the build directory..."
+          # Search for the .exe file in the build\windows folder
+          $exeFile = Get-ChildItem -Path "$WORKSPACE\build\windows" -Filter "${APP_NAME}.exe" -Recurse | Select-Object -First 1
           
-          if (Test-Path $BUILD_OUTPUT) {
-            Write-Host "Found release directory. Packaging..."
-            Compress-Archive -Path "$BUILD_OUTPUT\*" -DestinationPath "$ZIP_NAME" -Force
+          if ($exeFile) {
+            $releaseDir = $exeFile.DirectoryName
+            $ZIP_NAME = Join-Path $WORKSPACE "${APP_NAME}-windows-x64.zip"
+            Write-Host "Found executable at: $($exeFile.FullName)"
+            Write-Host "Packaging directory: $releaseDir"
+            
+            Compress-Archive -Path "$releaseDir\*" -DestinationPath "$ZIP_NAME" -Force
+            Write-Host "Successfully created $ZIP_NAME"
           } else {
-            Write-Host "!!! Error: Release directory not found at expected path !!!"
-            Write-Host "Listing $WORKSPACE contents:"
-            Get-ChildItem -Path $WORKSPACE -Recurse -Depth 3 | Select-Object FullName
+            Write-Host "!!! Error: Could not find ${APP_NAME}.exe anywhere in build\windows !!!"
+            Write-Host "Listing build\windows structure for debugging:"
+            Get-ChildItem -Path "$WORKSPACE\build\windows" -Recurse -Depth 4 | Select-Object FullName
             exit 1
           }
 
