@@ -163,4 +163,25 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get batchSizeHint =>
       'More: Faster, better context. Less: More stable, but more API requests.';
+
+  @override
+  String get recentProjects => 'Recent Projects';
+
+  @override
+  String get viewAll => 'View All';
+
+  @override
+  String get noProjects => 'No projects history';
+
+  @override
+  String progressLabel(int completed, int total) {
+    return 'Progress: $completed / $total';
+  }
+
+  @override
+  String get detect => 'Detect';
+
+  @override
+  String get clickDetectToFetchModels =>
+      'Please click \"Detect\" to fetch available models';
 }

@@ -20,14 +20,19 @@ class VideoPickerCard extends StatelessWidget {
     final theme = Theme.of(context);
 
     return Card(
-      child: InkWell(
-        onTap: onPickVideo,
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          child: hasFile
-              ? _buildSelectedState(context, theme)
-              : _buildEmptyState(context, theme),
+      child: SizedBox(
+        height: 175,
+        child: InkWell(
+          onTap: onPickVideo,
+          borderRadius: BorderRadius.circular(16),
+          child: Container(
+            padding: const EdgeInsets.all(24),
+            child: Center(
+              child: hasFile
+                  ? _buildSelectedState(context, theme)
+                  : _buildEmptyState(context, theme),
+            ),
+          ),
         ),
       ),
     );
@@ -45,8 +50,8 @@ class VideoPickerCard extends StatelessWidget {
             shape: BoxShape.circle,
           ),
           child: Icon(
-            Icons.upload_file_rounded,
-            size: 40,
+            Icons.upload_file_outlined,
+            size: 15,
             color: theme.colorScheme.primary,
           ),
         ),
@@ -71,6 +76,7 @@ class VideoPickerCard extends StatelessWidget {
   Widget _buildSelectedState(BuildContext context, ThemeData theme) {
     final l10n = AppLocalizations.of(context)!;
     return Row(
+      mainAxisSize: MainAxisSize.min,
       children: [
         Container(
           padding: const EdgeInsets.all(10),
@@ -85,8 +91,9 @@ class VideoPickerCard extends StatelessWidget {
           ),
         ),
         const SizedBox(width: 16),
-        Expanded(
+        Flexible(
           child: Column(
+            mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
@@ -105,6 +112,7 @@ class VideoPickerCard extends StatelessWidget {
             ],
           ),
         ),
+        const SizedBox(width: 16),
         if (onClear != null)
           IconButton(
             icon: const Icon(Icons.close_rounded),

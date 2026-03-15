@@ -90,5 +90,21 @@
   "english": "English",
   "paste": "Paste",
   "batchSizeLabel": "Translate {count} subtitles per batch",
-  "batchSizeHint": "More: Faster, better context. Less: More stable, but more API requests."
+  "batchSizeHint": "More: Faster, better context. Less: More stable, but more API requests.",
+  "recentProjects": "Recent Projects",
+  "viewAll": "View All",
+  "noProjects": "No projects history",
+  "progressLabel": "Progress: {completed} / {total}",
+  "@progressLabel": {
+    "placeholders": {
+      "completed": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "detect": "Detect",
+  "clickDetectToFetchModels": "Please click \"Detect\" to fetch available models"
 }

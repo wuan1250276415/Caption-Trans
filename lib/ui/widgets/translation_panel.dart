@@ -5,23 +5,18 @@ import '../../core/constants.dart';
 import 'package:caption_trans/l10n/app_localizations.dart';
 
 const Map<String, String> defaultLlmBaseUrls = {
-  // --- 国内核心梯队 (网络直连极速) ---
-  'DeepSeek (深度求索)': 'https://api.deepseek.com/v1',
-  '通义千问 (阿里云)': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
-  '月之暗面 (Kimi)': 'https://api.moonshot.cn/v1',
-  '智谱清言 (GLM)': 'https://open.bigmodel.cn/api/paas/v4',
-  '豆包 (火山引擎)': 'https://ark.cn-beijing.volces.com/api/v3',
-  '零一万物 (01.AI)': 'https://api.lingyiwanwu.com/v1',
-  '百川智能 (Baichuan)': 'https://api.baichuan-ai.com/v1',
-  '文心一言 (百度千帆)': 'https://qianfan.baidubce.com/v2',
-
-  // --- 国际标杆厂商 ---
+  'DeepSeek': 'https://api.deepseek.com/v1',
+  'Qwen': 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+  'Kimi': 'https://api.moonshot.cn/v1',
+  'GLM': 'https://open.bigmodel.cn/api/paas/v4',
+  '豆包': 'https://ark.cn-beijing.volces.com/api/v3',
+  '零一万物': 'https://api.lingyiwanwu.com/v1',
+  '百川智能': 'https://api.baichuan-ai.com/v1',
+  '文心一言': 'https://qianfan.baidubce.com/v2',
   'OpenAI': 'https://api.openai.com/v1',
   'Gemini (Google)': 'https://generativelanguage.googleapis.com/v1beta/openai',
-
-  // --- 本地部署与极客选项 ---
-  'Ollama (本地默认)': 'http://localhost:11434/v1',
-  'SiliconFlow (硅基流动)': 'https://api.siliconflow.cn/v1',
+  'Ollama': 'http://localhost:11434/v1',
+  'SiliconFlow': 'https://api.siliconflow.cn/v1',
 };
 
 /// Panel for configuring and starting translation.
@@ -169,18 +164,17 @@ class TranslationPanel extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(width: 12),
-                ElevatedButton.icon(
+                FilledButton(
                   onPressed: _isTranslating || apiKey.isEmpty
                       ? null
                       : onCheckModels,
-                  icon: const Icon(Icons.fact_check_rounded, size: 18),
-                  label: const Text('检测'),
-                  style: ElevatedButton.styleFrom(
+                  style: FilledButton.styleFrom(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 16,
                       vertical: 12,
                     ),
                   ),
+                  child: Text(l10n.detect),
                 ),
               ],
             ),
@@ -197,7 +191,7 @@ class TranslationPanel extends StatelessWidget {
                 ? const LinearProgressIndicator()
                 : availableModels.isEmpty
                 ? Text(
-                    'Please click "检测" to fetch available models',
+                    l10n.clickDetectToFetchModels,
                     style: TextStyle(
                       color: theme.colorScheme.error,
                       fontSize: 13,
@@ -292,47 +286,43 @@ class TranslationPanel extends StatelessWidget {
               ),
             ),
             const SizedBox(height: 20),
+            Text(
+              l10n.targetLanguage,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: Colors.white.withValues(alpha: 0.6),
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+            const SizedBox(height: 8),
             Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
                 Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        l10n.targetLanguage,
-                        style: theme.textTheme.bodySmall?.copyWith(
-                          color: Colors.white.withValues(alpha: 0.6),
-                          fontWeight: FontWeight.w500,
-                        ),
+                  child: DropdownButtonFormField<String>(
+                    initialValue: targetLanguage,
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 12,
+                        vertical: 10,
                       ),
-                      const SizedBox(height: 8),
-                      DropdownButtonFormField<String>(
-                        initialValue: targetLanguage,
-                        decoration: const InputDecoration(
-                          isDense: true,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 12,
-                            vertical: 10,
+                    ),
+                    items: AppConstants.supportedLanguages.entries
+                        .map(
+                          (e) => DropdownMenuItem(
+                            value: e.key,
+                            child: Text(
+                              '${e.value} (${e.key})',
+                              style: const TextStyle(fontSize: 14),
+                            ),
                           ),
-                        ),
-                        items: AppConstants.supportedLanguages.entries
-                            .map(
-                              (e) => DropdownMenuItem(
-                                value: e.key,
-                                child: Text(
-                                  '${e.value} (${e.key})',
-                                  style: const TextStyle(fontSize: 14),
-                                ),
-                              ),
-                            )
-                            .toList(),
-                        onChanged: _isTranslating
-                            ? null
-                            : (v) {
-                                if (v != null) onTargetLanguageChanged(v);
-                              },
-                      ),
-                    ],
+                        )
+                        .toList(),
+                    onChanged: _isTranslating
+                        ? null
+                        : (v) {
+                            if (v != null) onTargetLanguageChanged(v);
+                          },
                   ),
                 ),
                 const SizedBox(width: 16),
@@ -369,14 +359,9 @@ class TranslationPanel extends StatelessWidget {
       );
     }
 
-    return ElevatedButton.icon(
+    return FilledButton(
       onPressed: _canStart ? onStartTranslation : null,
-      icon: const Icon(Icons.translate_rounded, size: 20),
-      label: Text(l10n.translate),
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Theme.of(context).colorScheme.tertiary,
-        foregroundColor: Colors.white,
-      ),
+      child: Text(l10n.translate),
     );
   }
 

@@ -148,7 +148,7 @@ class _HomePageState extends State<HomePage> {
                       ),
                       const SizedBox(height: 12),
                       Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
+                        crossAxisAlignment: CrossAxisAlignment.center,
                         children: [
                           Expanded(
                             flex: 1,
@@ -600,8 +600,9 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildEmbeddedProjectList() {
+    final l10n = AppLocalizations.of(context)!;
     return Container(
-      height: 220, // Match typical VideoPickerCard height
+      height: 175, // Match typical VideoPickerCard height
       decoration: BoxDecoration(
         color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(16),
@@ -617,7 +618,7 @@ class _HomePageState extends State<HomePage> {
                 const Icon(Icons.history_rounded, size: 18),
                 const SizedBox(width: 8),
                 Text(
-                  '最近项目',
+                  l10n.recentProjects,
                   style: Theme.of(
                     context,
                   ).textTheme.titleSmall?.copyWith(fontWeight: FontWeight.bold),
@@ -633,7 +634,10 @@ class _HomePageState extends State<HomePage> {
                     minimumSize: Size.zero,
                     tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),
-                  child: const Text('查看全部', style: TextStyle(fontSize: 12)),
+                  child: Text(
+                    l10n.viewAll,
+                    style: const TextStyle(fontSize: 12),
+                  ),
                 ),
               ],
             ),
@@ -650,7 +654,7 @@ class _HomePageState extends State<HomePage> {
                   if (projects.isEmpty) {
                     return Center(
                       child: Text(
-                        '暂无历史项目',
+                        l10n.noProjects,
                         style: TextStyle(
                           color: Colors.white.withValues(alpha: 0.5),
                           fontSize: 13,
@@ -719,7 +723,7 @@ class _HomePageState extends State<HomePage> {
                                       ),
                                       const SizedBox(height: 4),
                                       Text(
-                                        '进度: $translated / $total',
+                                        l10n.progressLabel(translated, total),
                                         style: TextStyle(
                                           fontSize: 11,
                                           color: Colors.white.withValues(

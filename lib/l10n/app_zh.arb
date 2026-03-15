@@ -46,5 +46,11 @@
   "english": "English",
   "paste": "粘贴",
   "batchSizeLabel": "每次翻译 {count} 条字幕",
-  "batchSizeHint": "较多：更快、一致性好但易超时；较少：更稳但接口请求多"
+  "batchSizeHint": "较多：更快、一致性好但易超时；较少：更稳但接口请求多",
+  "recentProjects": "最近项目",
+  "viewAll": "查看全部",
+  "noProjects": "暂无历史项目",
+  "progressLabel": "进度: {completed} / {total}",
+  "detect": "检测",
+  "clickDetectToFetchModels": "请点击“检测”以获取可用模型"
 }

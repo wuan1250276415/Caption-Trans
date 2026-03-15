@@ -379,6 +379,42 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'More: Faster, better context. Less: More stable, but more API requests.'**
   String get batchSizeHint;
+
+  /// No description provided for @recentProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'Recent Projects'**
+  String get recentProjects;
+
+  /// No description provided for @viewAll.
+  ///
+  /// In en, this message translates to:
+  /// **'View All'**
+  String get viewAll;
+
+  /// No description provided for @noProjects.
+  ///
+  /// In en, this message translates to:
+  /// **'No projects history'**
+  String get noProjects;
+
+  /// No description provided for @progressLabel.
+  ///
+  /// In en, this message translates to:
+  /// **'Progress: {completed} / {total}'**
+  String progressLabel(int completed, int total);
+
+  /// No description provided for @detect.
+  ///
+  /// In en, this message translates to:
+  /// **'Detect'**
+  String get detect;
+
+  /// No description provided for @clickDetectToFetchModels.
+  ///
+  /// In en, this message translates to:
+  /// **'Please click \"Detect\" to fetch available models'**
+  String get clickDetectToFetchModels;
 }
 
 class _AppLocalizationsDelegate

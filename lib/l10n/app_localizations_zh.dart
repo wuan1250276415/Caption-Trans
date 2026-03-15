@@ -160,4 +160,24 @@ class AppLocalizationsZh extends AppLocalizations {
 
   @override
   String get batchSizeHint => '较多：更快、一致性好但易超时；较少：更稳但接口请求多';
+
+  @override
+  String get recentProjects => '最近项目';
+
+  @override
+  String get viewAll => '查看全部';
+
+  @override
+  String get noProjects => '暂无历史项目';
+
+  @override
+  String progressLabel(int completed, int total) {
+    return '进度: $completed / $total';
+  }
+
+  @override
+  String get detect => '检测';
+
+  @override
+  String get clickDetectToFetchModels => '请点击“检测”以获取可用模型';
 }
