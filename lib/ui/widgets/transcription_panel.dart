@@ -139,31 +139,17 @@ class TranscriptionPanel extends StatelessWidget {
     }
 
     if (state is Transcribing) {
-      final s = state as Transcribing;
-      String label = l10n.processingTranscription;
-      if (s.isGpu == true) {
-        label += ' (GPU Accel)';
-      }
       return _buildProgressRow(
         context,
         icon: Icons.mic_rounded,
-        label: label,
-        progress: s.progress > 0 ? s.progress / 100.0 : null,
+        label: l10n.processingTranscription,
+        progress: null,
         color: Colors.purple,
       );
     }
 
     if (state is TranscriptionComplete) {
       final s = state as TranscriptionComplete;
-      String infoText =
-          l10n.segmentsExtracted(s.result.segments.length, s.result.language);
-      if (s.result.isGpu == true) {
-        infoText += ' • GPU';
-      }
-      if (s.result.timingMs != null) {
-        infoText += ' • ${s.result.timingMs}ms';
-      }
-
       return Row(
         children: [
           const Icon(
@@ -173,7 +159,7 @@ class TranscriptionPanel extends StatelessWidget {
           ),
           const SizedBox(width: 8),
           Text(
-            infoText,
+            l10n.segmentsExtracted(s.result.segments.length, s.result.language),
             style: theme.textTheme.bodySmall?.copyWith(
               color: Colors.greenAccent,
             ),

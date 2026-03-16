@@ -65,19 +65,15 @@ class Transcribing extends TranscriptionState {
   final String videoPath;
   final String fileName;
   final String statusMessage;
-  final int progress;
-  final bool? isGpu;
 
   const Transcribing({
     required this.videoPath,
     required this.fileName,
     this.statusMessage = 'Transcribing...',
-    this.progress = 0,
-    this.isGpu,
   });
 
   @override
-  List<Object?> get props => [videoPath, fileName, statusMessage, progress, isGpu];
+  List<Object?> get props => [videoPath, fileName, statusMessage];
 }
 
 /// Transcription completed successfully.
