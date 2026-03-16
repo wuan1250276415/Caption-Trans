@@ -161,7 +161,7 @@ Keep your response concise (under 200 words).
       return models;
     } catch (e) {
       // Fallback
-      return ['deepseek-chat', 'gemini-2.0-flash', 'gpt-4o'];
+      return ['Get models failed. Please check your API key and baseURL.'];
     }
   }
 
