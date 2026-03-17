@@ -185,19 +185,19 @@ abstract class AppLocalizations {
   /// No description provided for @diskUsage.
   ///
   /// In en, this message translates to:
-  /// **'Disk Usage'**
+  /// **'Disk'**
   String get diskUsage;
 
   /// No description provided for @memoryUsage.
   ///
   /// In en, this message translates to:
-  /// **'Memory/VRAM Usage'**
+  /// **'Memory'**
   String get memoryUsage;
 
   /// No description provided for @transcriptionQuality.
   ///
   /// In en, this message translates to:
-  /// **'Transcription Quality'**
+  /// **'Quality'**
   String get transcriptionQuality;
 
   /// No description provided for @qualityLow.

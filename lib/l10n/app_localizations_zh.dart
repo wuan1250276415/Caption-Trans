@@ -51,13 +51,13 @@ class AppLocalizationsZh extends AppLocalizations {
   String get whisperModel => 'Whisper 模型';
 
   @override
-  String get diskUsage => '磁盘占用';
+  String get diskUsage => '磁盘';
 
   @override
-  String get memoryUsage => '内存/显存占用';
+  String get memoryUsage => '内存';
 
   @override
-  String get transcriptionQuality => '转录质量';
+  String get transcriptionQuality => '质量';
 
   @override
   String get qualityLow => '低';

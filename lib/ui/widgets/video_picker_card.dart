@@ -18,10 +18,15 @@ class VideoPickerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final hasFile = selectedFileName != null;
     final theme = Theme.of(context);
+    final platform = theme.platform;
+    final isMobilePlatform =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.android;
 
     return Card(
+      margin: EdgeInsets.zero,
       child: SizedBox(
-        height: 175,
+        width: double.infinity,
+        height: isMobilePlatform ? null : 175,
         child: InkWell(
           onTap: onPickVideo,
           borderRadius: BorderRadius.circular(16),

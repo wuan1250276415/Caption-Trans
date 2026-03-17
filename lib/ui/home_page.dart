@@ -126,303 +126,264 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final l10n = AppLocalizations.of(context)!;
+    final platform = Theme.of(context).platform;
+    final isMobilePlatform =
+        platform == TargetPlatform.iOS || platform == TargetPlatform.android;
 
     return Scaffold(
-      body: Column(
-        children: [
-          _buildAppBar(context, l10n),
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24),
-              child: Center(
-                child: ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 900),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      // Step 1: Video Selection
-                      _buildSectionHeader(
-                        context,
-                        icon: Icons.video_library_rounded,
-                        title: 'Step 1: ${l10n.stepSelectVideo}',
-                        number: '1',
-                      ),
-                      const SizedBox(height: 12),
-                      Row(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                          Expanded(
-                            flex: 1,
-                            child: BlocConsumer<TranscriptionBloc, TranscriptionState>(
-                              listener: (context, state) {
-                                if (state is TranscriptionComplete) {
-                                  if (_activeProject == null ||
-                                      _activeProject!.name != state.fileName) {
-                                    // Create a new project when transcription finishes initially
-                                    _activeProject = Project(
-                                      id: const Uuid().v4(),
-                                      name: state.fileName,
-                                      videoPath: state.videoPath,
-                                      createdAt: DateTime.now(),
-                                      updatedAt: DateTime.now(),
-                                      transcription: state.result,
-                                      translationConfig: null,
-                                    );
-                                    context.read<ProjectBloc>().add(
-                                      AddProject(_activeProject!),
-                                    );
-                                  } else {
-                                    // Update existing active project if for some reason transcription completes again
-                                    // Should not really happen on normal resume since it bypasses extraction
-                                  }
-                                } else if (state is TranscriptionInitial ||
-                                    state is VideoSelected) {
-                                  _activeProject =
-                                      null; // Reset on new video pick
-                                }
-                              },
-                              builder: (context, state) {
-                                return VideoPickerCard(
-                                  selectedFileName: _getFileName(state),
-                                  onPickVideo: () => _pickVideo(context),
-                                  onClear: state is! TranscriptionInitial
-                                      ? () => context
-                                            .read<TranscriptionBloc>()
-                                            .add(const ResetTranscription())
-                                      : null,
-                                );
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(flex: 1, child: _buildEmbeddedProjectList()),
-                        ],
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Step 2: Transcription
-                      _buildSectionHeader(
-                        context,
-                        icon: Icons.mic_rounded,
-                        title: 'Step 2: ${l10n.stepExtractSubtitles}',
-                        number: '2',
-                      ),
-                      const SizedBox(height: 12),
-                      BlocBuilder<TranscriptionBloc, TranscriptionState>(
-                        builder: (context, state) {
-                          return TranscriptionPanel(
-                            state: state,
-                            selectedModel: _selectedModel,
-                            onModelChanged: (model) =>
-                                setState(() => _selectedModel = model),
-                            onStartTranscription: () {
-                              context.read<TranscriptionBloc>().add(
-                                StartTranscription(modelName: _selectedModel),
-                              );
-                            },
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Step 3: Translation
-                      _buildSectionHeader(
-                        context,
-                        icon: Icons.translate_rounded,
-                        title: 'Step 3: ${l10n.stepTranslate}',
-                        number: '3',
-                      ),
-                      const SizedBox(height: 12),
-                      BlocConsumer<TranslationBloc, TranslationState>(
-                        listener: (context, state) {
-                          if (state is TranslationError) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              SnackBar(
-                                content: Text(state.message),
-                                backgroundColor: Colors.red.shade700,
-                              ),
-                            );
-                          } else if (state is TranslationInProgress &&
-                              state.partialSegments != null) {
-                            if (_activeProject != null) {
-                              final updatedResult = _activeProject!
-                                  .transcription
-                                  .copyWith(segments: state.partialSegments!);
-                              _activeProject = _activeProject!.copyWith(
-                                transcription: updatedResult,
-                                updatedAt: DateTime.now(),
-                              );
-                              context.read<ProjectBloc>().add(
-                                UpdateProject(_activeProject!),
-                              );
-                            }
-                          } else if (state is TranslationComplete) {
-                            if (_activeProject != null) {
-                              final updatedResult = _activeProject!
-                                  .transcription
-                                  .copyWith(segments: state.translatedSegments);
-                              _activeProject = _activeProject!.copyWith(
-                                transcription: updatedResult,
-                                updatedAt: DateTime.now(),
-                                translationConfig: state.config,
-                              );
-                              context.read<ProjectBloc>().add(
-                                UpdateProject(_activeProject!),
-                              );
-                            }
-                          }
-                        },
-                        builder: (context, translationState) {
-                          return BlocBuilder<
-                            TranscriptionBloc,
-                            TranscriptionState
-                          >(
-                            builder: (context, transcriptionState) {
-                              return TranslationPanel(
-                                transcriptionState: transcriptionState,
-                                translationState: translationState,
-                                llmProvider: _llmProvider,
-                                llmBaseUrl: _llmBaseUrl,
-                                onLlmProviderChanged: (provider) {
-                                  setState(() {
-                                    _llmProvider = provider;
-                                    _targetModel = ''; // reset model
-                                  });
-                                  widget.settingsService.setLlmProvider(
-                                    provider,
-                                  );
-                                  if (_apiKey.isNotEmpty) {
-                                    _fetchModels();
-                                  }
-                                },
-                                onLlmBaseUrlChanged: (url) {
-                                  setState(() => _llmBaseUrl = url);
-                                  widget.settingsService.setLlmBaseUrl(url);
-                                },
-                                onCheckModels: () => _fetchModels(),
-                                targetLanguage: _targetLanguage,
-                                apiKey: _apiKey,
-                                targetModel: _targetModel,
-                                availableModels: _availableModels,
-                                isLoadingModels: _isLoadingModels,
-                                onTargetLanguageChanged: (lang) {
-                                  setState(() => _targetLanguage = lang);
-                                  widget.settingsService.setTargetLanguage(
-                                    lang,
-                                  );
-                                },
-                                onApiKeyChanged: (key) {
-                                  setState(() => _apiKey = key);
-                                  widget.settingsService.setGeminiApiKey(key);
-                                  _fetchModels();
-                                },
-                                onTargetModelChanged: (model) {
-                                  setState(() => _targetModel = model);
-                                  widget.settingsService.setGeminiModel(model);
-                                },
-                                batchSize: _batchSize,
-                                onBatchSizeChanged: (size) {
-                                  setState(() => _batchSize = size);
-                                  widget.settingsService.setBatchSize(size);
-                                },
-                                onStartTranslation: () {
-                                  if (transcriptionState
-                                      is TranscriptionComplete) {
-                                    context.read<TranslationBloc>().add(
-                                      StartTranslation(
-                                        segments:
-                                            transcriptionState.result.segments,
-                                        config: TranslationConfig(
-                                          providerId: _llmProvider,
-                                          apiKey: _apiKey,
-                                          baseUrl: _llmBaseUrl,
-                                          model: _targetModel,
-                                          sourceLanguage: transcriptionState
-                                              .result
-                                              .language,
-                                          targetLanguage: _targetLanguage,
-                                          batchSize: _batchSize,
-                                        ),
-                                      ),
-                                    );
-                                  }
-                                },
-                                onCancelTranslation: () {
-                                  context.read<TranslationBloc>().add(
-                                    const CancelTranslation(),
-                                  );
-                                },
-                              );
-                            },
-                          );
-                        },
-                      ),
-
-                      const SizedBox(height: 32),
-
-                      // Step 4: Preview & Export
-                      _buildSectionHeader(
-                        context,
-                        icon: Icons.subtitles_rounded,
-                        title: 'Step 4: ${l10n.stepPreviewExport}',
-                        number: '4',
-                      ),
-                      const SizedBox(height: 12),
-                      _buildPreviewAndExport(context),
-
-                      const SizedBox(height: 48),
-                    ],
+      body: SafeArea(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 900),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  // Step 1: Video Selection
+                  _buildSectionHeader(
+                    context,
+                    icon: Icons.video_library_rounded,
+                    title: 'Step 1: ${l10n.stepSelectVideo}',
+                    number: '1',
+                    trailing: IconButton(
+                      icon: const Icon(Icons.settings_rounded),
+                      onPressed: () => _showSettings(context),
+                      tooltip: l10n.settings,
+                    ),
                   ),
-                ),
+                  const SizedBox(height: 12),
+                  _buildStepOnePanels(isMobilePlatform),
+
+                  const SizedBox(height: 32),
+
+                  // Step 2: Transcription
+                  _buildSectionHeader(
+                    context,
+                    icon: Icons.mic_rounded,
+                    title: 'Step 2: ${l10n.stepExtractSubtitles}',
+                    number: '2',
+                  ),
+                  const SizedBox(height: 12),
+                  BlocBuilder<TranscriptionBloc, TranscriptionState>(
+                    builder: (context, state) {
+                      return TranscriptionPanel(
+                        state: state,
+                        selectedModel: _selectedModel,
+                        onModelChanged: (model) =>
+                            setState(() => _selectedModel = model),
+                        onStartTranscription: () {
+                          context.read<TranscriptionBloc>().add(
+                            StartTranscription(modelName: _selectedModel),
+                          );
+                        },
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Step 3: Translation
+                  _buildSectionHeader(
+                    context,
+                    icon: Icons.translate_rounded,
+                    title: 'Step 3: ${l10n.stepTranslate}',
+                    number: '3',
+                  ),
+                  const SizedBox(height: 12),
+                  BlocConsumer<TranslationBloc, TranslationState>(
+                    listener: (context, state) {
+                      if (state is TranslationError) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          SnackBar(
+                            content: Text(state.message),
+                            backgroundColor: Colors.red.shade700,
+                          ),
+                        );
+                      } else if (state is TranslationInProgress &&
+                          state.partialSegments != null) {
+                        if (_activeProject != null) {
+                          final updatedResult = _activeProject!.transcription
+                              .copyWith(segments: state.partialSegments!);
+                          _activeProject = _activeProject!.copyWith(
+                            transcription: updatedResult,
+                            updatedAt: DateTime.now(),
+                          );
+                          context.read<ProjectBloc>().add(
+                            UpdateProject(_activeProject!),
+                          );
+                        }
+                      } else if (state is TranslationComplete) {
+                        if (_activeProject != null) {
+                          final updatedResult = _activeProject!.transcription
+                              .copyWith(segments: state.translatedSegments);
+                          _activeProject = _activeProject!.copyWith(
+                            transcription: updatedResult,
+                            updatedAt: DateTime.now(),
+                            translationConfig: state.config,
+                          );
+                          context.read<ProjectBloc>().add(
+                            UpdateProject(_activeProject!),
+                          );
+                        }
+                      }
+                    },
+                    builder: (context, translationState) {
+                      return BlocBuilder<TranscriptionBloc, TranscriptionState>(
+                        builder: (context, transcriptionState) {
+                          return TranslationPanel(
+                            transcriptionState: transcriptionState,
+                            translationState: translationState,
+                            llmProvider: _llmProvider,
+                            llmBaseUrl: _llmBaseUrl,
+                            onLlmProviderChanged: (provider) {
+                              setState(() {
+                                _llmProvider = provider;
+                                _targetModel = ''; // reset model
+                              });
+                              widget.settingsService.setLlmProvider(provider);
+                              if (_apiKey.isNotEmpty) {
+                                _fetchModels();
+                              }
+                            },
+                            onLlmBaseUrlChanged: (url) {
+                              setState(() => _llmBaseUrl = url);
+                              widget.settingsService.setLlmBaseUrl(url);
+                            },
+                            onCheckModels: () => _fetchModels(),
+                            targetLanguage: _targetLanguage,
+                            apiKey: _apiKey,
+                            targetModel: _targetModel,
+                            availableModels: _availableModels,
+                            isLoadingModels: _isLoadingModels,
+                            onTargetLanguageChanged: (lang) {
+                              setState(() => _targetLanguage = lang);
+                              widget.settingsService.setTargetLanguage(lang);
+                            },
+                            onApiKeyChanged: (key) {
+                              setState(() => _apiKey = key);
+                              widget.settingsService.setGeminiApiKey(key);
+                              _fetchModels();
+                            },
+                            onTargetModelChanged: (model) {
+                              setState(() => _targetModel = model);
+                              widget.settingsService.setGeminiModel(model);
+                            },
+                            batchSize: _batchSize,
+                            onBatchSizeChanged: (size) {
+                              setState(() => _batchSize = size);
+                              widget.settingsService.setBatchSize(size);
+                            },
+                            onStartTranslation: () {
+                              if (transcriptionState is TranscriptionComplete) {
+                                context.read<TranslationBloc>().add(
+                                  StartTranslation(
+                                    segments: transcriptionState.result.segments,
+                                    config: TranslationConfig(
+                                      providerId: _llmProvider,
+                                      apiKey: _apiKey,
+                                      baseUrl: _llmBaseUrl,
+                                      model: _targetModel,
+                                      sourceLanguage:
+                                          transcriptionState.result.language,
+                                      targetLanguage: _targetLanguage,
+                                      batchSize: _batchSize,
+                                    ),
+                                  ),
+                                );
+                              }
+                            },
+                            onCancelTranslation: () {
+                              context.read<TranslationBloc>().add(
+                                const CancelTranslation(),
+                              );
+                            },
+                          );
+                        },
+                      );
+                    },
+                  ),
+
+                  const SizedBox(height: 32),
+
+                  // Step 4: Preview & Export
+                  _buildSectionHeader(
+                    context,
+                    icon: Icons.subtitles_rounded,
+                    title: 'Step 4: ${l10n.stepPreviewExport}',
+                    number: '4',
+                  ),
+                  const SizedBox(height: 12),
+                  _buildPreviewAndExport(context),
+
+                  const SizedBox(height: 48),
+                ],
               ),
             ),
           ),
-        ],
+        ),
       ),
     );
   }
 
-  Widget _buildAppBar(BuildContext context, AppLocalizations l10n) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-      decoration: BoxDecoration(
-        color: Theme.of(context).colorScheme.surface,
-        border: Border(
-          bottom: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
-        ),
-      ),
-      child: Row(
+  Widget _buildStepOnePanels(bool isMobilePlatform) {
+    if (isMobilePlatform) {
+      return Column(
         children: [
-          Container(
-            padding: const EdgeInsets.all(4),
-            decoration: BoxDecoration(
-              color: const Color.fromARGB(255, 186, 186, 186),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Image.asset(
-              'assets/images/app_icon.png',
-              width: 32,
-              height: 32,
-            ),
-          ),
-          const SizedBox(width: 12),
-          Text(
-            l10n.appName,
-            style: Theme.of(context).textTheme.titleLarge?.copyWith(
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.5,
-            ),
-          ),
-          const Spacer(),
-          IconButton(
-            icon: const Icon(Icons.settings_rounded),
-            onPressed: () => _showSettings(context),
-            tooltip: l10n.settings,
-          ),
+          _buildVideoPickerPanel(),
+          const SizedBox(height: 12),
+          _buildEmbeddedProjectList(),
         ],
-      ),
+      );
+    }
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.center,
+      children: [
+        Expanded(flex: 1, child: _buildVideoPickerPanel()),
+        const SizedBox(width: 16),
+        Expanded(flex: 1, child: _buildEmbeddedProjectList()),
+      ],
+    );
+  }
+
+  Widget _buildVideoPickerPanel() {
+    return BlocConsumer<TranscriptionBloc, TranscriptionState>(
+      listener: (context, state) {
+        if (state is TranscriptionComplete) {
+          if (_activeProject == null || _activeProject!.name != state.fileName) {
+            // Create a new project when transcription finishes initially
+            _activeProject = Project(
+              id: const Uuid().v4(),
+              name: state.fileName,
+              videoPath: state.videoPath,
+              createdAt: DateTime.now(),
+              updatedAt: DateTime.now(),
+              transcription: state.result,
+              translationConfig: null,
+            );
+            context.read<ProjectBloc>().add(
+              AddProject(_activeProject!),
+            );
+          } else {
+            // Update existing active project if for some reason transcription completes again
+            // Should not really happen on normal resume since it bypasses extraction
+          }
+        } else if (state is TranscriptionInitial || state is VideoSelected) {
+          _activeProject = null; // Reset on new video pick
+        }
+      },
+      builder: (context, state) {
+        return VideoPickerCard(
+          selectedFileName: _getFileName(state),
+          onPickVideo: () => _pickVideo(context),
+          onClear: state is! TranscriptionInitial
+              ? () => context
+                    .read<TranscriptionBloc>()
+                    .add(const ResetTranscription())
+              : null,
+        );
+      },
     );
   }
 
@@ -431,6 +392,7 @@ class _HomePageState extends State<HomePage> {
     required IconData icon,
     required String title,
     required String number,
+    Widget? trailing,
   }) {
     return Row(
       children: [
@@ -457,12 +419,16 @@ class _HomePageState extends State<HomePage> {
         const SizedBox(width: 12),
         Icon(icon, size: 20, color: Theme.of(context).colorScheme.primary),
         const SizedBox(width: 8),
-        Text(
-          title,
-          style: Theme.of(
-            context,
-          ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+        Expanded(
+          child: Text(
+            title,
+            overflow: TextOverflow.ellipsis,
+            style: Theme.of(
+              context,
+            ).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w600),
+          ),
         ),
+        if (trailing != null) ...[const SizedBox(width: 8), trailing],
       ],
     );
   }

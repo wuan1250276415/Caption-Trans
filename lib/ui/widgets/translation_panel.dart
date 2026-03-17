@@ -68,6 +68,8 @@ class TranslationPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final l10n = AppLocalizations.of(context)!;
+    final modelNameMaxChars = MediaQuery.of(context).size.width < 600 ? 26 : 48;
+    final modelOptions = availableModels.toSet().toList();
 
     // Ensure the current llmProvider acts correctly if not in map
     final currentProviderValue = defaultLlmBaseUrls.containsKey(llmProvider)
@@ -200,9 +202,10 @@ class TranslationPanel extends StatelessWidget {
                     ),
                   )
                 : DropdownButtonFormField<String>(
-                    initialValue: availableModels.contains(targetModel)
+                    initialValue: modelOptions.contains(targetModel)
                         ? targetModel
-                        : availableModels.first,
+                        : modelOptions.first,
+                    itemHeight: null,
                     decoration: InputDecoration(
                       hintText: l10n.enterGeminiModel,
                       isDense: true,
@@ -215,10 +218,30 @@ class TranslationPanel extends StatelessWidget {
                         vertical: 10,
                       ),
                     ),
-                    items: availableModels.toSet().map((m) {
+                    selectedItemBuilder: (context) => modelOptions.map((m) {
+                      final truncated = _truncateModelName(
+                        m,
+                        maxChars: modelNameMaxChars,
+                      );
+                      return Tooltip(
+                        message: m,
+                        waitDuration: const Duration(milliseconds: 500),
+                        child: Text(
+                          truncated,
+                          style: const TextStyle(fontSize: 14),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      );
+                    }).toList(),
+                    items: modelOptions.map((m) {
                       return DropdownMenuItem(
                         value: m,
-                        child: Text(m, style: const TextStyle(fontSize: 14)),
+                        child: Text(
+                          m,
+                          style: const TextStyle(fontSize: 14),
+                          softWrap: true,
+                        ),
                       );
                     }).toList(),
                     onChanged: _isTranslating
@@ -352,6 +375,17 @@ class TranslationPanel extends StatelessWidget {
       apiKey.isNotEmpty &&
       availableModels.isNotEmpty &&
       translationState is! TranslationInProgress;
+
+  String _truncateModelName(String model, {required int maxChars}) {
+    if (model.length <= maxChars || maxChars <= 6) {
+      return model;
+    }
+
+    final keep = maxChars - 3;
+    final head = (keep * 0.65).floor();
+    final tail = keep - head;
+    return '${model.substring(0, head)}...${model.substring(model.length - tail)}';
+  }
 
   Widget _buildStartButton(BuildContext context, AppLocalizations l10n) {
     if (_isTranslating) {

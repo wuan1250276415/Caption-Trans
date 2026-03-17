@@ -61,7 +61,7 @@ class AppConstants {
     ),
   };
 
-  static const String defaultWhisperModel = 'base';
+  static const String defaultWhisperModel = 'large-v3-turbo';
 
   /// Hugging Face model base URL for GGML models.
   static const String whisperModelBaseUrl =
