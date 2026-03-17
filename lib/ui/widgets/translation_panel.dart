@@ -355,9 +355,14 @@ class TranslationPanel extends StatelessWidget {
 
   Widget _buildStartButton(BuildContext context, AppLocalizations l10n) {
     if (_isTranslating) {
+      final errorColor = Theme.of(context).colorScheme.error;
       return OutlinedButton.icon(
         onPressed: onCancelTranslation,
-        icon: const Icon(Icons.stop_circle_rounded, size: 18),
+        icon: Icon(Icons.stop_circle_rounded, size: 18, color: errorColor),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: errorColor,
+          side: BorderSide(color: errorColor.withValues(alpha: 0.6)),
+        ),
         label: Text(l10n.cancel),
       );
     }
@@ -451,16 +456,15 @@ class TranslationPanel extends StatelessWidget {
 
     if (translationState is TranslationCancelled) {
       final s = translationState as TranslationCancelled;
+      final errorColor = theme.colorScheme.error;
       return Row(
         children: [
-          const Icon(Icons.stop_circle_rounded, color: Colors.orangeAccent, size: 18),
+          Icon(Icons.stop_circle_rounded, color: errorColor, size: 18),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
               s.message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.orangeAccent,
-              ),
+              style: theme.textTheme.bodySmall?.copyWith(color: errorColor),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
             ),

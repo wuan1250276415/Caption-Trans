@@ -483,6 +483,11 @@ class _HomePageState extends State<HomePage> {
             } else if (translationState is TranslationComplete) {
               segments = translationState.translatedSegments;
               hasTranslation = true;
+            } else if (translationState is TranslationCancelled) {
+              segments = translationState.partialSegments;
+              hasTranslation =
+                  segments != null &&
+                  segments.any((s) => s.translatedText?.isNotEmpty == true);
             } else if (transcriptionState is TranscriptionComplete) {
               segments = transcriptionState.result.segments;
               // Check if the loaded project naturally has translations

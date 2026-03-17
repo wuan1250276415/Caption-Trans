@@ -52,11 +52,15 @@ class TranslationComplete extends TranslationState {
 /// Translation was cancelled by the user.
 class TranslationCancelled extends TranslationState {
   final String message;
+  final List<SubtitleSegment>? partialSegments;
 
-  const TranslationCancelled({this.message = 'Translation cancelled'});
+  const TranslationCancelled({
+    this.message = 'Translation cancelled',
+    this.partialSegments,
+  });
 
   @override
-  List<Object?> get props => [message];
+  List<Object?> get props => [message, partialSegments];
 }
 
 /// Translation failed.

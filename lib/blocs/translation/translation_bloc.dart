@@ -1,3 +1,4 @@
+import 'package:caption_trans/models/subtitle_segment.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import '../../services/translation/translation_provider.dart';
 import '../../services/translation/translation_service.dart';
@@ -8,10 +9,9 @@ import 'translation_state.dart';
 class TranslationBloc extends Bloc<TranslationEvent, TranslationState> {
   final TranslationService _translationService;
 
-  TranslationBloc({
-    TranslationService? translationService,
-  })  : _translationService = translationService ?? TranslationService(),
-        super(const TranslationInitial()) {
+  TranslationBloc({TranslationService? translationService})
+    : _translationService = translationService ?? TranslationService(),
+      super(const TranslationInitial()) {
     on<StartTranslation>(_onStartTranslation);
     on<CancelTranslation>(_onCancelTranslation);
     on<ResetTranslation>(_onReset);
@@ -22,11 +22,13 @@ class TranslationBloc extends Bloc<TranslationEvent, TranslationState> {
     Emitter<TranslationState> emit,
   ) async {
     try {
-      emit(TranslationInProgress(
-        completed: 0,
-        total: event.segments.length,
-        statusMessage: 'Initializing translation...',
-      ));
+      emit(
+        TranslationInProgress(
+          completed: 0,
+          total: event.segments.length,
+          statusMessage: 'Initializing translation...',
+        ),
+      );
 
       // Configure the provider
       _translationService.configure(event.config);
@@ -37,24 +39,36 @@ class TranslationBloc extends Bloc<TranslationEvent, TranslationState> {
         config: event.config,
         onProgress: (completed, total, partials) {
           if (!emit.isDone) {
-            emit(TranslationInProgress(
-              completed: completed,
-              total: total,
-              partialSegments: partials,
-              statusMessage:
-                  'Translating subtitles ($completed/$total)...',
-            ));
+            emit(
+              TranslationInProgress(
+                completed: completed,
+                total: total,
+                partialSegments: partials,
+                statusMessage: 'Translating subtitles ($completed/$total)...',
+              ),
+            );
           }
         },
       );
 
-      emit(TranslationComplete(
-        translatedSegments: translatedSegments,
-        config: event.config,
-      ));
+      emit(
+        TranslationComplete(
+          translatedSegments: translatedSegments,
+          config: event.config,
+        ),
+      );
     } on TranslationAbortedException catch (e) {
       if (!emit.isDone) {
-        emit(TranslationCancelled(message: e.message));
+        List<SubtitleSegment>? latestPartials;
+        if (state is TranslationInProgress) {
+          latestPartials = (state as TranslationInProgress).partialSegments;
+        }
+        emit(
+          TranslationCancelled(
+            message: e.message,
+            partialSegments: latestPartials ?? event.segments,
+          ),
+        );
       }
     } catch (e) {
       emit(TranslationError(message: e.toString()));
@@ -66,15 +80,13 @@ class TranslationBloc extends Bloc<TranslationEvent, TranslationState> {
     Emitter<TranslationState> emit,
   ) {
     if (state is TranslationInProgress) {
+      final s = state as TranslationInProgress;
       _translationService.cancel();
-      emit(const TranslationCancelled());
+      emit(TranslationCancelled(partialSegments: s.partialSegments));
     }
   }
 
-  void _onReset(
-    ResetTranslation event,
-    Emitter<TranslationState> emit,
-  ) {
+  void _onReset(ResetTranslation event, Emitter<TranslationState> emit) {
     _translationService.reset();
     emit(const TranslationInitial());
   }
