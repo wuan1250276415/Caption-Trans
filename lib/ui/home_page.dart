@@ -474,7 +474,13 @@ class _HomePageState extends State<HomePage> {
             List<SubtitleSegment>? segments;
             bool hasTranslation = false;
 
-            if (translationState is TranslationComplete) {
+            if (translationState is TranslationInProgress &&
+                translationState.partialSegments != null) {
+              segments = translationState.partialSegments;
+              hasTranslation =
+                  segments != null &&
+                  segments.any((s) => s.translatedText?.isNotEmpty == true);
+            } else if (translationState is TranslationComplete) {
               segments = translationState.translatedSegments;
               hasTranslation = true;
             } else if (transcriptionState is TranscriptionComplete) {
