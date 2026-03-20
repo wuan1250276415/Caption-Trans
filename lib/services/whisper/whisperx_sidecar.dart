@@ -294,10 +294,7 @@ class WhisperXSidecar {
     }
   }
 
-  void _handleProcessFailure(
-    Exception error, {
-    bool terminateProcess = false,
-  }) {
+  void _handleProcessFailure(Exception error, {bool terminateProcess = false}) {
     if (terminateProcess) {
       _process?.kill();
     }
@@ -326,21 +323,35 @@ class WhisperXSidecar {
     required String computeType,
     required int batchSize,
     required bool noAlign,
+    Map<String, dynamic>? asrOptions,
+    Map<String, dynamic>? vadOptions,
+    Map<String, dynamic>? segmentationOptions,
     void Function(int progress)? onProgress,
     void Function(String status, String? detail)? onStatus,
     void Function(String line)? onLog,
   }) {
+    final Map<String, dynamic> params = <String, dynamic>{
+      'wav_path': wavPath,
+      'model': modelName,
+      'language': language,
+      'device': device,
+      'compute_type': computeType,
+      'batch_size': batchSize,
+      'no_align': noAlign,
+    };
+    if (asrOptions != null && asrOptions.isNotEmpty) {
+      params['asr_options'] = asrOptions;
+    }
+    if (vadOptions != null && vadOptions.isNotEmpty) {
+      params['vad_options'] = vadOptions;
+    }
+    if (segmentationOptions != null && segmentationOptions.isNotEmpty) {
+      params['segmentation_options'] = segmentationOptions;
+    }
+
     return _sendRequest(
       method: 'transcribe',
-      params: {
-        'wav_path': wavPath,
-        'model': modelName,
-        'language': language,
-        'device': device,
-        'compute_type': computeType,
-        'batch_size': batchSize,
-        'no_align': noAlign,
-      },
+      params: params,
       onProgress: onProgress,
       onStatus: onStatus,
       onLog: onLog,

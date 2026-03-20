@@ -196,6 +196,11 @@ class WhisperService {
   }) async {
     onRuntimeInfo?.call(await _buildRuntimeInfo(config));
     onStatus?.call('preparing_model', config.statusDetail);
+    final Map<String, dynamic> asrOptions = _buildAsrOptions(language);
+    final Map<String, dynamic> vadOptions = _buildVadOptions(language);
+    final Map<String, dynamic> segmentationOptions = _buildSegmentationOptions(
+      language,
+    );
     return _sidecar.transcribe(
       wavPath: wavPath,
       modelName: modelName,
@@ -204,9 +209,78 @@ class WhisperService {
       computeType: config.computeType,
       batchSize: config.batchSize,
       noAlign: false,
+      asrOptions: asrOptions.isEmpty ? null : asrOptions,
+      vadOptions: vadOptions.isEmpty ? null : vadOptions,
+      segmentationOptions: segmentationOptions.isEmpty
+          ? null
+          : segmentationOptions,
       onStatus: onStatus,
       onLog: onLog,
     );
+  }
+
+  Map<String, dynamic> _buildAsrOptions(String? language) {
+    switch (_normalizeLanguageCode(language)) {
+      case 'ja':
+        return const <String, dynamic>{
+          'initial_prompt': '句読点を含めて自然な文として書き起こしてください。',
+        };
+      default:
+        return const <String, dynamic>{};
+    }
+  }
+
+  Map<String, dynamic> _buildVadOptions(String? language) {
+    switch (_normalizeLanguageCode(language)) {
+      case 'ja':
+        return const <String, dynamic>{
+          'chunk_size': 12,
+          'vad_onset': 0.4,
+          'vad_offset': 0.25,
+        };
+      default:
+        return const <String, dynamic>{};
+    }
+  }
+
+  Map<String, dynamic> _buildSegmentationOptions(String? language) {
+    switch (_normalizeLanguageCode(language)) {
+      case 'ja':
+        return const <String, dynamic>{
+          'split_on_pause': true,
+          'pause_threshold_sec': 1,
+          'max_segment_duration_sec': 6,
+          'max_segment_chars': 24,
+          'min_split_chars': 4,
+          'prefer_punctuation_split': true,
+        };
+      case 'zh':
+        return const <String, dynamic>{
+          'split_on_pause': true,
+          'pause_threshold_sec': 0.6,
+          'max_segment_duration_sec': 4.2,
+          'max_segment_chars': 26,
+          'min_split_chars': 4,
+          'prefer_punctuation_split': true,
+        };
+      default:
+        return const <String, dynamic>{
+          'split_on_pause': true,
+          'pause_threshold_sec': 0.8,
+          'max_segment_duration_sec': 6.0,
+          'max_segment_chars': 42,
+          'min_split_chars': 10,
+          'prefer_punctuation_split': true,
+        };
+    }
+  }
+
+  String? _normalizeLanguageCode(String? language) {
+    final String normalized = (language ?? '').trim().toLowerCase();
+    if (normalized.isEmpty || normalized == 'auto') {
+      return null;
+    }
+    return normalized;
   }
 
   Future<_WhisperExecutionConfig> _resolveExecutionConfig(

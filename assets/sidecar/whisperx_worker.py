@@ -16,6 +16,32 @@ import whisperx
 
 SAMPLE_RATE = 16000
 ANSI_ESCAPE_RE = re.compile(r"\x1B[@-_][0-?]*[ -/]*[@-~]")
+LANGUAGES_WITHOUT_SPACES = {"ja", "zh"}
+SENTENCE_END_PUNCTUATION = frozenset("。！？!?")
+SOFT_BREAK_PUNCTUATION = frozenset("、，,;；")
+CLOSING_PUNCTUATION = frozenset("」』】》）〕〉〟'\"”’")
+JOIN_WITHOUT_LEADING_SPACE = frozenset(".,!?;:%)]}。，、！？：；％）」』】》〕〉〟'\"”’")
+JOIN_WITHOUT_TRAILING_SPACE = frozenset("([{「『【《（〔〈〝'\"“‘$")
+DEFAULT_SEGMENTATION_OPTIONS: Dict[str, Any] = {
+    "split_on_pause": True,
+    "pause_threshold_sec": 0.8,
+    "max_segment_duration_sec": 6.0,
+    "max_segment_chars": 42,
+    "min_split_chars": 10,
+    "prefer_punctuation_split": True,
+}
+NO_SPACE_LANGUAGE_SEGMENTATION_OPTIONS: Dict[str, Any] = {
+    "pause_threshold_sec": 0.65,
+    "max_segment_duration_sec": 4.5,
+    "max_segment_chars": 28,
+    "min_split_chars": 6,
+}
+JAPANESE_SEGMENTATION_OPTIONS: Dict[str, Any] = {
+    "pause_threshold_sec": 0.55,
+    "max_segment_duration_sec": 4.0,
+    "max_segment_chars": 24,
+    "min_split_chars": 4,
+}
 
 
 def configure_stdio() -> None:
@@ -121,6 +147,59 @@ def to_float(value: Any, default: float = 0.0) -> float:
         return default
 
 
+def to_optional_float(value: Any) -> Optional[float]:
+    try:
+        return float(value)
+    except (TypeError, ValueError):
+        return None
+
+
+def to_int(value: Any, default: int = 0) -> int:
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return default
+
+
+def to_bool(value: Any, default: bool = False) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, str):
+        normalized = value.strip().lower()
+        if normalized in {"1", "true", "yes", "on"}:
+            return True
+        if normalized in {"0", "false", "no", "off"}:
+            return False
+        return default
+    if value is None:
+        return default
+    return bool(value)
+
+
+def normalize_options(raw_options: Any) -> Dict[str, Any]:
+    if not isinstance(raw_options, dict):
+        return {}
+
+    normalized: Dict[str, Any] = {}
+    for key, value in raw_options.items():
+        if value is None:
+            continue
+        normalized[str(key)] = value
+    return normalized
+
+
+def build_segmentation_options(
+    language: Optional[str], override_options: Dict[str, Any]
+) -> Dict[str, Any]:
+    options: Dict[str, Any] = dict(DEFAULT_SEGMENTATION_OPTIONS)
+    if language in LANGUAGES_WITHOUT_SPACES:
+        options.update(NO_SPACE_LANGUAGE_SEGMENTATION_OPTIONS)
+    if language == "ja":
+        options.update(JAPANESE_SEGMENTATION_OPTIONS)
+    options.update(override_options)
+    return options
+
+
 def load_wav_pcm_s16le(path: str) -> np.ndarray:
     with wave.open(path, "rb") as wav_file:
         channels = wav_file.getnchannels()
@@ -170,9 +249,249 @@ def normalize_segments(raw_segments: Any) -> List[Dict[str, Any]]:
     return segments
 
 
+def normalize_word_entries(raw_words: Any, language: Optional[str]) -> List[Dict[str, Any]]:
+    if not isinstance(raw_words, list):
+        return []
+
+    words: List[Dict[str, Any]] = []
+    for item in raw_words:
+        if not isinstance(item, dict):
+            continue
+
+        raw_text = str(item.get("word") or "")
+        text = raw_text if language in LANGUAGES_WITHOUT_SPACES else raw_text.strip()
+        if not text:
+            continue
+
+        words.append(
+            {
+                "word": text,
+                "start": to_optional_float(item.get("start")),
+                "end": to_optional_float(item.get("end")),
+            }
+        )
+
+    return words
+
+
+def join_words(words: List[Dict[str, Any]], language: Optional[str]) -> str:
+    tokens = [str(item.get("word") or "") for item in words]
+    if language in LANGUAGES_WITHOUT_SPACES:
+        return "".join(tokens).strip()
+
+    rendered = ""
+    for token in tokens:
+        text = token.strip()
+        if not text:
+            continue
+        if not rendered:
+            rendered = text
+            continue
+        if text[0] in JOIN_WITHOUT_LEADING_SPACE or rendered[-1] in JOIN_WITHOUT_TRAILING_SPACE:
+            rendered += text
+        else:
+            rendered += f" {text}"
+    return rendered.strip()
+
+
+def effective_char_count(text: str, language: Optional[str]) -> int:
+    if language in LANGUAGES_WITHOUT_SPACES:
+        return len(text.replace(" ", "").replace("\u3000", ""))
+    return len(text)
+
+
+def ends_with_sentence_boundary(text: str) -> bool:
+    trimmed = text.strip()
+    while trimmed and trimmed[-1] in CLOSING_PUNCTUATION:
+        trimmed = trimmed[:-1].rstrip()
+    return bool(trimmed) and trimmed[-1] in SENTENCE_END_PUNCTUATION
+
+
+def ends_with_soft_break(text: str) -> bool:
+    trimmed = text.strip()
+    while trimmed and trimmed[-1] in CLOSING_PUNCTUATION:
+        trimmed = trimmed[:-1].rstrip()
+    return bool(trimmed) and trimmed[-1] in SOFT_BREAK_PUNCTUATION
+
+
+def is_closing_token(text: str) -> bool:
+    stripped = text.strip()
+    return bool(stripped) and all(ch in CLOSING_PUNCTUATION for ch in stripped)
+
+
+def resolve_span(
+    words: List[Dict[str, Any]], fallback_start: float, fallback_end: float
+) -> Tuple[float, float]:
+    start = fallback_start
+    end = fallback_end
+
+    for item in words:
+        word_start = item.get("start")
+        if isinstance(word_start, float):
+            start = word_start
+            break
+
+    for item in reversed(words):
+        word_end = item.get("end")
+        if isinstance(word_end, float):
+            end = word_end
+            break
+
+    if end < start:
+        end = start
+    return start, end
+
+
+def gap_after_word(
+    current_word: Dict[str, Any], next_word: Optional[Dict[str, Any]]
+) -> Optional[float]:
+    if next_word is None:
+        return None
+
+    end = current_word.get("end")
+    start = next_word.get("start")
+    if not isinstance(end, float) or not isinstance(start, float):
+        return None
+
+    return max(0.0, start - end)
+
+
+def build_segment_from_words(
+    words: List[Dict[str, Any]],
+    language: Optional[str],
+    fallback_start: float,
+    fallback_end: float,
+) -> Optional[Dict[str, Any]]:
+    text = join_words(words, language)
+    if not text:
+        return None
+
+    start, end = resolve_span(words, fallback_start, fallback_end)
+    return {
+        "start": start,
+        "end": end,
+        "text": text,
+    }
+
+
+def split_segment_by_words(
+    raw_segment: Dict[str, Any],
+    language: Optional[str],
+    segmentation_options: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    start = to_float(raw_segment.get("start"), 0.0)
+    end = to_float(raw_segment.get("end"), start)
+    text = str(raw_segment.get("text") or "").strip()
+    if not text:
+        return []
+
+    words = normalize_word_entries(raw_segment.get("words"), language)
+    if not words:
+        return [
+            {
+                "start": start,
+                "end": end if end >= start else start,
+                "text": text,
+            }
+        ]
+
+    split_on_pause = to_bool(segmentation_options.get("split_on_pause"), True)
+    prefer_punctuation_split = to_bool(
+        segmentation_options.get("prefer_punctuation_split"), True
+    )
+    pause_threshold = max(
+        0.0, to_float(segmentation_options.get("pause_threshold_sec"), 0.8)
+    )
+    max_duration = max(
+        0.5, to_float(segmentation_options.get("max_segment_duration_sec"), 6.0)
+    )
+    max_chars = max(1, to_int(segmentation_options.get("max_segment_chars"), 42))
+    min_split_chars = max(
+        1,
+        min(
+            max_chars,
+            to_int(segmentation_options.get("min_split_chars"), min(max_chars, 10)),
+        ),
+    )
+
+    split_segments: List[Dict[str, Any]] = []
+    current_words: List[Dict[str, Any]] = []
+
+    for index, word in enumerate(words):
+        current_words.append(word)
+        next_word = words[index + 1] if index + 1 < len(words) else None
+
+        current_text = join_words(current_words, language)
+        if not current_text:
+            continue
+
+        current_start, current_end = resolve_span(current_words, start, end)
+        current_duration = max(0.0, current_end - current_start)
+        current_char_count = effective_char_count(current_text, language)
+
+        should_break = False
+        if (
+            prefer_punctuation_split
+            and next_word is not None
+            and not is_closing_token(str(next_word.get("word") or ""))
+            and ends_with_sentence_boundary(current_text)
+        ):
+            should_break = True
+
+        if (
+            not should_break
+            and split_on_pause
+            and next_word is not None
+            and current_char_count >= min_split_chars
+        ):
+            gap = gap_after_word(word, next_word)
+            if gap is not None and gap >= pause_threshold:
+                should_break = True
+
+        if not should_break and next_word is not None and current_char_count >= min_split_chars:
+            if current_duration >= max_duration:
+                should_break = True
+            elif current_char_count >= max_chars and (
+                current_duration >= max_duration * 0.65 or ends_with_soft_break(current_text)
+            ):
+                should_break = True
+
+        if should_break:
+            segment = build_segment_from_words(current_words, language, start, end)
+            if segment is not None:
+                split_segments.append(segment)
+            current_words = []
+
+    if current_words:
+        segment = build_segment_from_words(current_words, language, start, end)
+        if segment is not None:
+            split_segments.append(segment)
+
+    return split_segments or [{"start": start, "end": end, "text": text}]
+
+
+def normalize_transcript_segments(
+    raw_segments: Any,
+    language: Optional[str],
+    segmentation_options: Dict[str, Any],
+) -> List[Dict[str, Any]]:
+    if not isinstance(raw_segments, list):
+        return []
+
+    split_segments: List[Dict[str, Any]] = []
+    for item in raw_segments:
+        if not isinstance(item, dict):
+            continue
+        split_segments.extend(
+            split_segment_by_words(item, language, segmentation_options)
+        )
+
+    return normalize_segments(split_segments)
+
+
 class WhisperXWorker:
     def __init__(self) -> None:
-        self.models: Dict[Tuple[str, str, str, Optional[str]], Any] = {}
+        self.models: Dict[Tuple[str, str, str, Optional[str], str, str], Any] = {}
         self.align_models: Dict[Tuple[str, str], Tuple[Any, Dict[str, Any]]] = {}
 
     def clear_device_resources(self, device: Optional[str] = None) -> None:
@@ -208,8 +527,17 @@ class WhisperXWorker:
         device: str,
         compute_type: str,
         language: Optional[str],
+        asr_options: Dict[str, Any],
+        vad_options: Dict[str, Any],
     ) -> Any:
-        key = (model_name, device, compute_type, language)
+        key = (
+            model_name,
+            device,
+            compute_type,
+            language,
+            json.dumps(asr_options, sort_keys=True, ensure_ascii=False),
+            json.dumps(vad_options, sort_keys=True, ensure_ascii=False),
+        )
         if key in self.models:
             return self.models[key]
 
@@ -221,6 +549,8 @@ class WhisperXWorker:
             device,
             compute_type=compute_type,
             language=language,
+            asr_options=asr_options,
+            vad_options=vad_options,
         )
         self.models[key] = model
         return model
@@ -299,7 +629,10 @@ class WhisperXWorker:
         device = str(params.get("device") or "cpu")
         compute_type = str(params.get("compute_type") or "int8")
         batch_size = int(params.get("batch_size") or 4)
-        no_align = bool(params.get("no_align") or False)
+        no_align = to_bool(params.get("no_align"), False)
+        asr_options = normalize_options(params.get("asr_options"))
+        vad_options = normalize_options(params.get("vad_options"))
+        segmentation_overrides = normalize_options(params.get("segmentation_options"))
 
         emit_status(request_id, "loading_audio")
         emit_progress(request_id, 8)
@@ -316,6 +649,8 @@ class WhisperXWorker:
                 device=device,
                 compute_type=compute_type,
                 language=language,
+                asr_options=asr_options,
+                vad_options=vad_options,
             )
         model_logs.flush()
 
@@ -337,6 +672,9 @@ class WhisperXWorker:
             self.clear_device_resources(device="cuda")
 
         detected_language = str(result.get("language") or language or "unknown")
+        segmentation_options = build_segmentation_options(
+            detected_language, segmentation_overrides
+        )
         normalized_segments = normalize_segments(result.get("segments"))
 
         if not no_align and normalized_segments:
@@ -361,7 +699,14 @@ class WhisperXWorker:
                 del align_model
                 self.clear_device_resources(device="cuda")
             detected_language = str(aligned.get("language") or detected_language)
-            normalized_segments = normalize_segments(aligned.get("segments"))
+            segmentation_options = build_segmentation_options(
+                detected_language, segmentation_overrides
+            )
+            normalized_segments = normalize_transcript_segments(
+                aligned.get("segments"),
+                detected_language,
+                segmentation_options,
+            )
 
         emit_status(request_id, "finalizing")
         emit_progress(request_id, 96)
