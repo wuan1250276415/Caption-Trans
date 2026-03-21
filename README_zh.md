@@ -9,8 +9,9 @@
 </p>
 
 # 什么是 Caption Trans？
-导入视频，提取视频字幕，使用 AI 翻译字幕为目标语言。
-支持：Google Gemini（已测试）、OpenAI、DeepSeek、Ollama 等兼容 OpenAI 的 API 服务。
+使用 AI 大模型翻译视频字幕。**特别为日语优化。**
+
+支持：Google Gemini、OpenAI、DeepSeek、等兼容 OpenAI 的 API 服务。
 
 # 下载
 支持 macOS（M系列芯片）和 Windows。
@@ -28,11 +29,9 @@
 <img src="screenshots/screenshot_zh.jpg" alt="应用截图" width="500">
 
 # 使用心得
-目前测试了 gemini api, Qwen, SiliconFlow，推荐使用**gemini-2.5-flash-lite**。
+转录为日语特别优化，在 windows和 macOS 均支持 GPU 加速。
 
-它能兼顾速度和质量，价格也比较便宜。并且能翻译敏感内容。
-
-gemini-3 以上的模型，翻译敏感内容会返回空，价格也比较贵。
+翻译推荐使用**gemini flash lite**模型，实测翻译速度非常快和质量也很不错，价格也比较便宜。并且能翻译一些敏感内容。
 
 # 开源协议
 [MIT License](LICENSE)

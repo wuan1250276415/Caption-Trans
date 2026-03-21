@@ -9,8 +9,9 @@
 </p>
 
 # What is Caption Trans?
-Import videos, extract subtitles, and use AI to translate them into the target language.
-Supports: Google Gemini (tested), OpenAI, DeepSeek, Ollama, and other OpenAI-compatible API services.
+Use AI large language models to translate video subtitles. **Especially optimized for Japanese.**
+
+Supports: Google Gemini, OpenAI, DeepSeek, and other OpenAI-compatible API services.
 
 # Download
 Supports macOS (Apple Silicon) and Windows.
@@ -18,22 +19,19 @@ Supports macOS (Apple Silicon) and Windows.
 Please go to [Releases](https://github.com/cddqssc/Caption-Trans/releases) to download.
 
 ## ⚠️ How to open on macOS
-1. Double-click the app. It will be blocked by the system because it has not been signed with an Apple developer certificate.
+1. Double-click the app. Since it is not currently signed with an Apple developer certificate, it will be blocked by the system.
 2. Go to **System Settings** > **Privacy & Security**.
-3. Scroll down to the Security section and click **"Open Anyway"** next to the app's block message.
-4. Enter your Mac password and click **"Open"**. 
-*(You only need to do this once.)*
+3. Scroll down and find the blocked app notice in the Security section, then click **"Open Anyway"**.
+4. After verifying your Mac password, click **"Open"** in the final popup.
+*(You only need to do this once. After that, you can open it normally by double-clicking.)*
 
-# App Screenshot
+# App Screenshots
 <img src="screenshots/screenshot_en.jpg" alt="App Screenshot" width="500">
 
-# Tips
-I have currently tested the Gemini API, Qwen, and SiliconFlow, and I recommend using **gemini-2.5-flash-lite**.
+# Notes
+Transcription is especially optimized for Japanese, and GPU acceleration is supported on both Windows and macOS.
 
-It balances speed and quality, and the price is relatively low. It can also translate sensitive content.
-
-For models above Gemini 3, translating sensitive content may return an empty result, and the price is higher.
+For translation, I recommend the **gemini flash lite** model. In practice, it is very fast, delivers solid quality, and is relatively affordable. It can also translate some sensitive content.
 
 # License
 [MIT License](LICENSE)
-
