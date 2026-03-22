@@ -29,9 +29,9 @@
 <img src="screenshots/screenshot_zh.jpg" alt="应用截图" width="500">
 
 # GPU加速
-macOS（Apple芯片）自动支持 GPU 加速
+macOS（Apple芯片）自动支持 GPU 加速。
 
-Windows 用户如果有 nvidia 显卡，下载安装[CUDA](https://developer.nvidia.com/cuda-downloads)后重启 APP 即可自动识别 GPU。
+Windows 用户如果使用 nvidia 显卡则支持自动支持 GPU 加速。
 
 # 使用心得
 转录为日语特别优化，在 windows和 macOS 均支持 GPU 加速。

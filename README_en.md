@@ -31,7 +31,7 @@ Please go to [Releases](https://github.com/cddqssc/Caption-Trans/releases) to do
 # GPU Acceleration
 macOS (Apple Silicon) automatically supports GPU acceleration.
 
-Windows users with an NVIDIA graphics card can enable automatic GPU detection simply by downloading and installing [CUDA](https://developer.nvidia.com/cuda-downloads), then restarting the application.
+Windows users utilizing NVIDIA graphics cards automatically benefit from GPU acceleration support.
 
 # Notes
 Transcription is especially optimized for Japanese, and GPU acceleration is supported on both Windows and macOS.
