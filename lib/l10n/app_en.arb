@@ -63,6 +63,14 @@
   "targetLanguage": "Target Language",
   "translate": "Translate",
   "continueTranslation": "Continue Translation",
+  "retryFailedTranslations": "Retry Failed ({count})",
+  "@retryFailedTranslations": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "retranslate": "Retranslate",
   "initializingTranslation": "Initializing translation...",
   "translatingProgress": "Translating subtitles ({completed}/{total})...",

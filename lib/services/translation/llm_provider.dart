@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import 'translation_failure.dart';
 import 'translation_provider.dart';
 
 /// LLM implementation of [TranslationProvider] using the standard OpenAI API.
@@ -391,14 +392,13 @@ Keep your response concise (under 200 words).
   ) {
     if (response.isEmpty) {
       if (finishReason != null && finishReason.isNotEmpty) {
-        return List.filled(
-          expectedCount,
-          '[Translation stopped: $finishReason]',
-        );
+        return List.filled(expectedCount, buildTranslationError(finishReason));
       }
       return List.filled(
         expectedCount,
-        '[Translation error: The output may contain sensitive terms. Please try switching to a different model. 翻译错误，可能包含敏感词，请尝试更换模型]',
+        buildTranslationError(
+          'The output may contain sensitive terms. Please try switching to a different model. 翻译错误，可能包含敏感词，请尝试更换模型',
+        ),
       );
     }
 
@@ -421,7 +421,7 @@ Keep your response concise (under 200 words).
     }
 
     while (results.length < expectedCount) {
-      results.add('[Translation Error]');
+      results.add(buildTranslationError('Incomplete response'));
     }
 
     return results.length > expectedCount

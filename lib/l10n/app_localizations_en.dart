@@ -174,6 +174,11 @@ class AppLocalizationsEn extends AppLocalizations {
   String get continueTranslation => 'Continue Translation';
 
   @override
+  String retryFailedTranslations(int count) {
+    return 'Retry Failed ($count)';
+  }
+
+  @override
   String get retranslate => 'Retranslate';
 
   @override

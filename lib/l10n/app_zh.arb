@@ -53,6 +53,14 @@
   "targetLanguage": "目标语言",
   "translate": "翻译",
   "continueTranslation": "继续翻译",
+  "retryFailedTranslations": "重试失败 ({count})",
+  "@retryFailedTranslations": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "retranslate": "重新翻译",
   "initializingTranslation": "正在初始化翻译...",
   "translatingProgress": "正在翻译字幕 ({completed}/{total})...",

@@ -2,7 +2,11 @@ import 'dart:async';
 import '../../models/subtitle_segment.dart';
 import '../../models/translation_config.dart';
 import 'translation_provider.dart';
+import 'translation_failure.dart';
 import 'llm_provider.dart';
+
+typedef TranslationProviderFactory =
+    TranslationProvider Function(TranslationConfig config);
 
 /// Orchestrates the translation process with context management.
 ///
@@ -10,12 +14,18 @@ import 'llm_provider.dart';
 /// and progress reporting.
 class TranslationService {
   static final TranslationService _instance = TranslationService._internal();
+  final TranslationProviderFactory _providerFactory;
 
-  factory TranslationService() {
+  factory TranslationService({TranslationProviderFactory? providerFactory}) {
+    if (providerFactory != null) {
+      return TranslationService._withProviderFactory(providerFactory);
+    }
     return _instance;
   }
 
-  TranslationService._internal();
+  TranslationService._internal() : _providerFactory = _defaultProviderFactory;
+
+  TranslationService._withProviderFactory(this._providerFactory);
 
   TranslationProvider? _provider;
   String? _contextSummary;
@@ -27,6 +37,10 @@ class TranslationService {
   final Map<String, String> _glossary = {};
 
   TranslationProvider? get currentProvider => _provider;
+
+  static TranslationProvider _defaultProviderFactory(TranslationConfig config) {
+    return LlmProvider(providerId: config.providerId);
+  }
 
   void _ensureAbortController() {
     if (_abortCompleter != null && !_abortCompleter!.isCompleted) {
@@ -48,7 +62,7 @@ class TranslationService {
   /// Initialize or switch the translation provider based on config.
   void configure(TranslationConfig config) {
     _provider?.dispose();
-    _provider = LlmProvider(providerId: config.providerId);
+    _provider = _providerFactory(config);
   }
 
   /// Translate all segments with context-aware batching.
@@ -57,6 +71,7 @@ class TranslationService {
   Future<List<SubtitleSegment>> translateAll({
     required List<SubtitleSegment> segments,
     required TranslationConfig config,
+    bool retryFailedOnly = false,
     void Function(int completed, int total, List<SubtitleSegment> partials)?
     onProgress,
   }) async {
@@ -82,9 +97,17 @@ class TranslationService {
 
     final allTexts = segments.map((s) => s.text).toList();
     final totalSegments = segments.length;
+    final translatedTexts = segments
+        .map((s) => s.translatedText ?? '')
+        .toList();
+    var completedCount = _countSuccessfulTranslations(translatedTexts);
 
     // Step 1: Build context summary for global understanding
-    onProgress?.call(0, totalSegments, segments);
+    onProgress?.call(
+      completedCount,
+      totalSegments,
+      _buildSegmentsWithTranslations(segments, translatedTexts),
+    );
     if (_isCancelled) {
       throw const TranslationAbortedException();
     }
@@ -103,11 +126,41 @@ class TranslationService {
       rethrow;
     }
 
-    // Step 2: Translate in batches with sliding context window
-    final translatedTexts = segments
-        .map((s) => s.translatedText ?? '')
-        .toList();
-    var completedCount = translatedTexts.where((t) => t.isNotEmpty).length;
+    // Step 2: Translate pending or failed segments in batches.
+    if (retryFailedOnly) {
+      completedCount = await _retryFailedBatches(
+        segments: segments,
+        config: config,
+        allTexts: allTexts,
+        translatedTexts: translatedTexts,
+        completedCount: completedCount,
+        onProgress: onProgress,
+      );
+    } else {
+      completedCount = await _translatePendingBatches(
+        segments: segments,
+        config: config,
+        allTexts: allTexts,
+        translatedTexts: translatedTexts,
+        completedCount: completedCount,
+        onProgress: onProgress,
+      );
+    }
+
+    // Step 3: Build result segments with translations
+    return _buildSegmentsWithTranslations(segments, translatedTexts);
+  }
+
+  Future<int> _translatePendingBatches({
+    required List<SubtitleSegment> segments,
+    required TranslationConfig config,
+    required List<String> allTexts,
+    required List<String> translatedTexts,
+    required int completedCount,
+    void Function(int completed, int total, List<SubtitleSegment> partials)?
+    onProgress,
+  }) async {
+    final totalSegments = segments.length;
 
     for (
       var batchStart = 0;
@@ -115,103 +168,220 @@ class TranslationService {
       batchStart += config.batchSize
     ) {
       final batchEnd = (batchStart + config.batchSize).clamp(0, totalSegments);
-      final batchTexts = allTexts.sublist(batchStart, batchEnd);
-
-      // Check if this batch is already translated
-      bool needsTranslation = false;
-      for (var i = batchStart; i < batchEnd; i++) {
-        if (translatedTexts[i].isEmpty) {
-          needsTranslation = true;
-          break;
-        }
+      if (!_batchNeedsTranslation(translatedTexts, batchStart, batchEnd)) {
+        continue;
       }
 
-      if (!needsTranslation) {
-        continue; // Skip this batch, it's already translated
-      }
-
-      // Context before: last N translated lines from previous batch
-      final contextBeforeStart = (batchStart - config.contextOverlap).clamp(
-        0,
-        totalSegments,
+      final batchResults = await _translateBatch(
+        texts: allTexts.sublist(batchStart, batchEnd),
+        config: config,
+        contextBefore: _buildContextBefore(
+          translatedTexts: translatedTexts,
+          start: (batchStart - config.contextOverlap).clamp(0, totalSegments),
+          end: batchStart,
+        ),
+        contextAfter: batchEnd < totalSegments
+            ? allTexts.sublist(
+                batchEnd,
+                (batchEnd + config.contextOverlap).clamp(0, totalSegments),
+              )
+            : <String>[],
       );
-      final contextBefore = batchStart > 0
-          ? translatedTexts.sublist(contextBeforeStart, batchStart)
-          : <String>[];
 
-      // Context after: next N original lines after this batch
-      final contextAfterEnd = (batchEnd + config.contextOverlap).clamp(
-        0,
-        totalSegments,
+      completedCount += _applyBatchResults(
+        translatedTexts: translatedTexts,
+        indices: List<int>.generate(
+          batchEnd - batchStart,
+          (offset) => batchStart + offset,
+        ),
+        batchResults: batchResults,
       );
-      final contextAfter = batchEnd < totalSegments
-          ? allTexts.sublist(batchEnd, contextAfterEnd)
-          : <String>[];
 
-      if (_isCancelled) {
-        throw const TranslationAbortedException();
-      }
+      onProgress?.call(
+        completedCount,
+        totalSegments,
+        _buildSegmentsWithTranslations(segments, translatedTexts),
+      );
 
-      late final List<String> batchResults;
-      try {
-        batchResults = await _provider!.translateBatch(
-          texts: batchTexts,
-          sourceLanguage: config.sourceLanguage,
-          targetLanguage: config.targetLanguage,
-          model: config.model,
-          contextBefore: contextBefore,
-          contextAfter: contextAfter,
-          glossary: _glossary,
-          abortTrigger: _abortCompleter?.future,
-        );
-      } catch (e) {
-        if (_isCancelled) {
-          throw const TranslationAbortedException();
-        }
-        rethrow;
-      }
-
-      // Store results
-      int newlyCompleted = 0;
-      for (var i = 0; i < batchResults.length; i++) {
-        if (translatedTexts[batchStart + i].isEmpty &&
-            batchResults[i].isNotEmpty) {
-          newlyCompleted++;
-        }
-        translatedTexts[batchStart + i] = batchResults[i];
-      }
-
-      completedCount += newlyCompleted;
-
-      final partialSegments = segments
-          .asMap()
-          .entries
-          .map(
-            (e) => e.value.copyWith(
-              translatedText: translatedTexts[e.key].isEmpty
-                  ? null
-                  : translatedTexts[e.key],
-            ),
-          )
-          .toList();
-
-      onProgress?.call(completedCount, totalSegments, partialSegments);
-
-      // Extract key terms from first batch for glossary
       if (batchStart == 0) {
-        _extractGlossary(batchTexts, batchResults);
+        _extractGlossary(allTexts.sublist(batchStart, batchEnd), batchResults);
       }
     }
 
-    // Step 3: Build result segments with translations
+    return completedCount;
+  }
+
+  Future<int> _retryFailedBatches({
+    required List<SubtitleSegment> segments,
+    required TranslationConfig config,
+    required List<String> allTexts,
+    required List<String> translatedTexts,
+    required int completedCount,
+    void Function(int completed, int total, List<SubtitleSegment> partials)?
+    onProgress,
+  }) async {
+    final totalSegments = segments.length;
+
+    for (
+      var batchStart = 0;
+      batchStart < totalSegments;
+      batchStart += config.batchSize
+    ) {
+      final batchEnd = (batchStart + config.batchSize).clamp(0, totalSegments);
+      final failedIndices = <int>[];
+
+      for (var i = batchStart; i < batchEnd; i++) {
+        if (isTranslationErrorText(translatedTexts[i])) {
+          failedIndices.add(i);
+        }
+      }
+
+      if (failedIndices.isEmpty) {
+        continue;
+      }
+
+      final firstFailed = failedIndices.first;
+      final lastFailed = failedIndices.last;
+      final batchResults = await _translateBatch(
+        texts: failedIndices.map((index) => allTexts[index]).toList(),
+        config: config,
+        contextBefore: _buildContextBefore(
+          translatedTexts: translatedTexts,
+          start: (firstFailed - config.contextOverlap).clamp(0, totalSegments),
+          end: firstFailed,
+        ),
+        contextAfter: lastFailed + 1 < totalSegments
+            ? allTexts.sublist(
+                lastFailed + 1,
+                (lastFailed + 1 + config.contextOverlap).clamp(
+                  0,
+                  totalSegments,
+                ),
+              )
+            : <String>[],
+      );
+
+      completedCount += _applyBatchResults(
+        translatedTexts: translatedTexts,
+        indices: failedIndices,
+        batchResults: batchResults,
+      );
+
+      onProgress?.call(
+        completedCount,
+        totalSegments,
+        _buildSegmentsWithTranslations(segments, translatedTexts),
+      );
+    }
+
+    return completedCount;
+  }
+
+  bool _batchNeedsTranslation(
+    List<String> translatedTexts,
+    int start,
+    int end,
+  ) {
+    for (var i = start; i < end; i++) {
+      if (translatedTexts[i].isEmpty ||
+          isTranslationErrorText(translatedTexts[i])) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  List<String> _buildContextBefore({
+    required List<String> translatedTexts,
+    required int start,
+    required int end,
+  }) {
+    if (end <= start) {
+      return const <String>[];
+    }
+
+    return translatedTexts
+        .sublist(start, end)
+        .where((text) => text.isNotEmpty && !isTranslationErrorText(text))
+        .toList();
+  }
+
+  Future<List<String>> _translateBatch({
+    required List<String> texts,
+    required TranslationConfig config,
+    required List<String> contextBefore,
+    required List<String> contextAfter,
+  }) async {
+    if (_isCancelled) {
+      throw const TranslationAbortedException();
+    }
+
+    try {
+      return await _provider!.translateBatch(
+        texts: texts,
+        sourceLanguage: config.sourceLanguage,
+        targetLanguage: config.targetLanguage,
+        model: config.model,
+        contextBefore: contextBefore,
+        contextAfter: contextAfter,
+        glossary: _glossary,
+        abortTrigger: _abortCompleter?.future,
+      );
+    } catch (e) {
+      if (_isCancelled) {
+        throw const TranslationAbortedException();
+      }
+      rethrow;
+    }
+  }
+
+  int _applyBatchResults({
+    required List<String> translatedTexts,
+    required List<int> indices,
+    required List<String> batchResults,
+  }) {
+    var completedDelta = 0;
+
+    for (var i = 0; i < batchResults.length; i++) {
+      final index = indices[i];
+      final previousText = translatedTexts[index];
+      final nextText = batchResults[i];
+      final wasSuccessful =
+          previousText.isNotEmpty && !isTranslationErrorText(previousText);
+      final isSuccessful =
+          nextText.isNotEmpty && !isTranslationErrorText(nextText);
+
+      if (!wasSuccessful && isSuccessful) {
+        completedDelta++;
+      } else if (wasSuccessful && !isSuccessful) {
+        completedDelta--;
+      }
+
+      translatedTexts[index] = nextText;
+    }
+
+    return completedDelta;
+  }
+
+  int _countSuccessfulTranslations(List<String> translatedTexts) {
+    return translatedTexts
+        .where((text) => text.isNotEmpty && !isTranslationErrorText(text))
+        .length;
+  }
+
+  List<SubtitleSegment> _buildSegmentsWithTranslations(
+    List<SubtitleSegment> segments,
+    List<String> translatedTexts,
+  ) {
     return segments
         .asMap()
         .entries
         .map(
-          (e) => e.value.copyWith(
-            translatedText: translatedTexts[e.key].isEmpty
+          (entry) => entry.value.copyWith(
+            translatedText: translatedTexts[entry.key].isEmpty
                 ? null
-                : translatedTexts[e.key],
+                : translatedTexts[entry.key],
           ),
         )
         .toList();

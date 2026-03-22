@@ -14,14 +14,16 @@ abstract class TranslationEvent extends Equatable {
 class StartTranslation extends TranslationEvent {
   final List<SubtitleSegment> segments;
   final TranslationConfig config;
+  final bool retryFailedOnly;
 
   const StartTranslation({
     required this.segments,
     required this.config,
+    this.retryFailedOnly = false,
   });
 
   @override
-  List<Object?> get props => [segments, config];
+  List<Object?> get props => [segments, config, retryFailedOnly];
 }
 
 /// Cancel an ongoing translation.

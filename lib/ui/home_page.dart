@@ -6,6 +6,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 import 'package:share_plus/share_plus.dart';
 import '../services/settings_service.dart';
+import '../services/translation/translation_failure.dart';
 import '../services/translation/translation_service.dart';
 import '../blocs/transcription/transcription_bloc.dart';
 import '../blocs/transcription/transcription_event.dart';
@@ -278,7 +279,31 @@ class _HomePageState extends State<HomePage> {
     return null;
   }
 
-  int _countTranslatedSegments(List<SubtitleSegment>? segments) {
+  int _countSuccessfulTranslatedSegments(List<SubtitleSegment>? segments) {
+    if (segments == null) {
+      return 0;
+    }
+
+    return segments
+        .where(
+          (segment) =>
+              segment.translatedText?.trim().isNotEmpty == true &&
+              !isTranslationErrorText(segment.translatedText),
+        )
+        .length;
+  }
+
+  int _countFailedTranslatedSegments(List<SubtitleSegment>? segments) {
+    if (segments == null) {
+      return 0;
+    }
+
+    return segments
+        .where((segment) => isTranslationErrorText(segment.translatedText))
+        .length;
+  }
+
+  int _countVisibleTranslationSegments(List<SubtitleSegment>? segments) {
     if (segments == null) {
       return 0;
     }
@@ -323,6 +348,7 @@ class _HomePageState extends State<HomePage> {
     required TranslationState translationState,
     required TranscriptionState transcriptionState,
     bool restart = false,
+    bool retryFailedOnly = false,
   }) {
     final config = _buildCurrentTranslationConfig(transcriptionState);
     final segments = _resolveEffectiveSegments(
@@ -338,6 +364,7 @@ class _HomePageState extends State<HomePage> {
       StartTranslation(
         segments: restart ? _clearTranslatedSegments(segments) : segments,
         config: config,
+        retryFailedOnly: retryFailedOnly,
       ),
     );
   }
@@ -469,20 +496,19 @@ class _HomePageState extends State<HomePage> {
                             transcriptionState,
                           );
                           final translatedSegmentCount =
-                              _countTranslatedSegments(effectiveSegments);
+                              _countSuccessfulTranslatedSegments(
+                                effectiveSegments,
+                              );
+                          final failedSegmentCount =
+                              _countFailedTranslatedSegments(effectiveSegments);
                           final totalSegmentCount =
                               effectiveSegments?.length ?? 0;
-                          final hasPartialTranslation =
-                              translatedSegmentCount > 0 &&
-                              translatedSegmentCount < totalSegmentCount;
-                          final isFullyTranslated =
-                              totalSegmentCount > 0 &&
-                              translatedSegmentCount == totalSegmentCount;
 
                           return TranslationPanel(
                             transcriptionState: transcriptionState,
                             translationState: translationState,
                             translatedSegmentCount: translatedSegmentCount,
+                            failedSegmentCount: failedSegmentCount,
                             totalSegmentCount: totalSegmentCount,
                             llmProvider: _llmProvider,
                             llmBaseUrl: _llmBaseUrl,
@@ -525,17 +551,24 @@ class _HomePageState extends State<HomePage> {
                                 transcriptionState: transcriptionState,
                               );
                             },
-                            onRestartTranslation:
-                                hasPartialTranslation || isFullyTranslated
+                            onRetryFailedTranslation: failedSegmentCount > 0
                                 ? () {
                                     _startTranslation(
                                       context,
                                       translationState: translationState,
                                       transcriptionState: transcriptionState,
-                                      restart: true,
+                                      retryFailedOnly: true,
                                     );
                                   }
                                 : null,
+                            onRestartTranslation: () {
+                              _startTranslation(
+                                context,
+                                translationState: translationState,
+                                transcriptionState: transcriptionState,
+                                restart: true,
+                              );
+                            },
                             onCancelTranslation: () {
                               context.read<TranslationBloc>().add(
                                 const CancelTranslation(),
@@ -685,7 +718,8 @@ class _HomePageState extends State<HomePage> {
               translationState,
               transcriptionState,
             );
-            final hasTranslation = _countTranslatedSegments(segments) > 0;
+            final hasTranslation =
+                _countVisibleTranslationSegments(segments) > 0;
 
             return SubtitlePreview(
               segments: segments,

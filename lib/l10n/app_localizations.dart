@@ -416,6 +416,12 @@ abstract class AppLocalizations {
   /// **'Continue Translation'**
   String get continueTranslation;
 
+  /// No description provided for @retryFailedTranslations.
+  ///
+  /// In en, this message translates to:
+  /// **'Retry Failed ({count})'**
+  String retryFailedTranslations(int count);
+
   /// No description provided for @retranslate.
   ///
   /// In en, this message translates to:

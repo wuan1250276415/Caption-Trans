@@ -39,6 +39,7 @@ class TranslationBloc extends Bloc<TranslationEvent, TranslationState> {
       final translatedSegments = await _translationService.translateAll(
         segments: event.segments,
         config: event.config,
+        retryFailedOnly: event.retryFailedOnly,
         onProgress: (completed, total, partials) {
           latestPartials = partials;
           if (!emit.isDone) {

@@ -170,6 +170,11 @@ class AppLocalizationsZh extends AppLocalizations {
   String get continueTranslation => '继续翻译';
 
   @override
+  String retryFailedTranslations(int count) {
+    return '重试失败 ($count)';
+  }
+
+  @override
   String get retranslate => '重新翻译';
 
   @override

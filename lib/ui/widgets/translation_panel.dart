@@ -24,6 +24,7 @@ class TranslationPanel extends StatelessWidget {
   final TranscriptionState transcriptionState;
   final TranslationState translationState;
   final int translatedSegmentCount;
+  final int failedSegmentCount;
   final int totalSegmentCount;
   final String targetLanguage;
   final String llmProvider;
@@ -41,6 +42,7 @@ class TranslationPanel extends StatelessWidget {
   final ValueChanged<int> onBatchSizeChanged;
   final VoidCallback onCheckModels;
   final VoidCallback onStartTranslation;
+  final VoidCallback? onRetryFailedTranslation;
   final VoidCallback? onRestartTranslation;
   final VoidCallback onCancelTranslation;
 
@@ -49,6 +51,7 @@ class TranslationPanel extends StatelessWidget {
     required this.transcriptionState,
     required this.translationState,
     required this.translatedSegmentCount,
+    required this.failedSegmentCount,
     required this.totalSegmentCount,
     required this.targetLanguage,
     required this.llmProvider,
@@ -66,6 +69,7 @@ class TranslationPanel extends StatelessWidget {
     required this.onBatchSizeChanged,
     required this.onCheckModels,
     required this.onStartTranslation,
+    this.onRetryFailedTranslation,
     this.onRestartTranslation,
     required this.onCancelTranslation,
   });
@@ -357,7 +361,9 @@ class TranslationPanel extends StatelessWidget {
                 final actions = _buildActionButtons(context, l10n);
                 final useStackedLayout =
                     constraints.maxWidth < 720 &&
-                    (_hasPartialTranslation || _isFullyTranslated);
+                    (_hasFailures ||
+                        _hasSuccessfulTranslation ||
+                        !_hasUntranslatedSegments);
 
                 if (useStackedLayout) {
                   return Column(
@@ -391,11 +397,13 @@ class TranslationPanel extends StatelessWidget {
   }
 
   bool get _isTranslating => translationState is TranslationInProgress;
-  bool get _hasAnyTranslation => translatedSegmentCount > 0;
-  bool get _hasPartialTranslation =>
-      _hasAnyTranslation && translatedSegmentCount < totalSegmentCount;
-  bool get _isFullyTranslated =>
-      totalSegmentCount > 0 && translatedSegmentCount == totalSegmentCount;
+  bool get _hasSuccessfulTranslation => translatedSegmentCount > 0;
+  bool get _hasFailures => failedSegmentCount > 0;
+  int get _untranslatedSegmentCount =>
+      totalSegmentCount - translatedSegmentCount - failedSegmentCount;
+  bool get _hasUntranslatedSegments => _untranslatedSegmentCount > 0;
+  bool get _hasRetryableState =>
+      _hasSuccessfulTranslation || _hasFailures || _hasUntranslatedSegments;
 
   bool get _canStart =>
       transcriptionState is TranscriptionComplete &&
@@ -428,34 +436,57 @@ class TranslationPanel extends StatelessWidget {
       );
     }
 
-    if (_hasPartialTranslation) {
-      return Wrap(
-        spacing: 8,
-        runSpacing: 8,
-        children: [
-          FilledButton(
-            onPressed: _canStart ? onStartTranslation : null,
-            child: Text(l10n.continueTranslation),
+    final buttons = <Widget>[];
+
+    if (_hasUntranslatedSegments) {
+      buttons.add(
+        FilledButton(
+          onPressed: _canStart ? onStartTranslation : null,
+          child: Text(
+            _hasSuccessfulTranslation
+                ? l10n.continueTranslation
+                : l10n.translate,
           ),
-          OutlinedButton(
-            onPressed: _canStart ? onRestartTranslation : null,
-            child: Text(l10n.retranslate),
-          ),
-        ],
+        ),
       );
     }
 
-    if (_isFullyTranslated) {
-      return OutlinedButton(
-        onPressed: _canStart ? onRestartTranslation : null,
-        child: Text(l10n.retranslate),
+    if (_hasFailures) {
+      final retryLabel = l10n.retryFailedTranslations(failedSegmentCount);
+      buttons.add(
+        _hasUntranslatedSegments
+            ? OutlinedButton(
+                onPressed: _canStart ? onRetryFailedTranslation : null,
+                child: Text(retryLabel),
+              )
+            : FilledButton(
+                onPressed: _canStart ? onRetryFailedTranslation : null,
+                child: Text(retryLabel),
+              ),
       );
     }
 
-    return FilledButton(
-      onPressed: _canStart ? onStartTranslation : null,
-      child: Text(l10n.translate),
-    );
+    if (_hasSuccessfulTranslation || _hasFailures) {
+      buttons.add(
+        OutlinedButton(
+          onPressed: _canStart ? onRestartTranslation : null,
+          child: Text(l10n.retranslate),
+        ),
+      );
+    }
+
+    if (buttons.isEmpty && !_hasRetryableState) {
+      return FilledButton(
+        onPressed: _canStart ? onStartTranslation : null,
+        child: Text(l10n.translate),
+      );
+    }
+
+    if (buttons.length == 1) {
+      return buttons.first;
+    }
+
+    return Wrap(spacing: 8, runSpacing: 8, children: buttons);
   }
 
   Widget _buildStatusWidget(BuildContext context, AppLocalizations l10n) {
