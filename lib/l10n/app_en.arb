@@ -13,7 +13,7 @@
   "changeFile": "Change file",
   "clear": "Clear",
   "stepExtractSubtitles": "Extract Subtitles",
-  "whisperModel": "Whisper Model",
+  "whisperModel": "Model",
   "sourceVideoLanguage": "Source Video Language",
   "sourceVideoLanguageHint": "Selecting source video language can improve transcription efficiency and accuracy.",
   "diskUsage": "Disk",
@@ -26,13 +26,13 @@
   "qualitySuperior": "Superior (Recommended)",
   "qualityBest": "Best",
   "extract": "Extract",
-  "preparingRuntime": "Preparing WhisperX runtime...",
-  "runtimeChecking": "Checking WhisperX runtime...",
+  "preparingRuntime": "Preparing runtime...",
+  "runtimeChecking": "Checking runtime...",
   "runtimeDownloading": "Downloading runtime package...",
   "runtimeExtracting": "Extracting runtime package...",
   "runtimeCreatingEnvironment": "Creating Python environment...",
-  "runtimeInstallingDependencies": "Installing WhisperX dependencies (first run may take a while)...",
-  "runtimeStartingSidecar": "Starting WhisperX sidecar...",
+  "runtimeInstallingDependencies": "Installing dependencies (first run may take a while)...",
+  "runtimeStartingSidecar": "Starting runtime...",
   "transcodingAudio": "Transcoding media to audio...",
   "transcribingStatus": "Transcribing...",
   "transcriptionLoadingAudio": "Loading audio...",
@@ -129,5 +129,32 @@
   "clickDetectToFetchModels": "Please click \"Detect\" to fetch available models",
   "savedProvidersTitle": "Saved Providers",
   "savedProvidersEmpty": "No saved providers",
-  "savedProvidersHint": "Automatically saved locally after API verification succeeds"
+  "savedProvidersHint": "Automatically saved locally after API verification succeeds",
+  "appUpdate": "Application",
+  "currentVersion": "Current version",
+  "checkForUpdates": "Check for updates",
+  "checkingForUpdates": "Checking for updates...",
+  "updateAvailableTitle": "Update available",
+  "updateAvailableMessage": "Version {latest} is available. You are currently on {current}.",
+  "@updateAvailableMessage": {
+    "placeholders": {
+      "latest": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadUpdate": "Download update",
+  "alreadyLatestVersion": "You're on the latest version ({version}).",
+  "@alreadyLatestVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCheckFailed": "Failed to check for updates.",
+  "releaseNotes": "Release notes"
 }

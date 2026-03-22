@@ -29,6 +29,8 @@ import '../blocs/project/project_bloc.dart';
 import '../blocs/project/project_event.dart';
 import '../blocs/project/project_state.dart';
 import '../models/subtitle_segment.dart';
+import '../services/update_service.dart';
+import 'widgets/update_dialog.dart';
 
 /// Main application page with step-by-step workflow.
 class HomePage extends StatefulWidget {
@@ -59,6 +61,7 @@ class _HomePageState extends State<HomePage> {
   List<String> _availableModels = [];
   bool _isLoadingModels = false;
   Map<String, ProviderCredential> _savedProviderCredentials = {};
+  final UpdateService _updateService = UpdateService();
 
   Project? _activeProject;
 
@@ -66,6 +69,15 @@ class _HomePageState extends State<HomePage> {
   void initState() {
     super.initState();
     _loadSettings();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkForUpdatesSilently();
+    });
+  }
+
+  @override
+  void dispose() {
+    _updateService.dispose();
+    super.dispose();
   }
 
   void _loadSettings() {
@@ -87,6 +99,29 @@ class _HomePageState extends State<HomePage> {
 
     if (_apiKey.isNotEmpty) {
       _fetchModels();
+    }
+  }
+
+  Future<void> _checkForUpdatesSilently() async {
+    if (!UpdateService.supportsAutoUpdateCheck || !mounted) {
+      return;
+    }
+
+    final lastCheckedAt = widget.settingsService.lastUpdateCheckAt;
+    if (!UpdateService.shouldPerformAutoCheck(lastCheckedAt)) {
+      return;
+    }
+
+    try {
+      final result = await _updateService.checkForUpdates();
+      await widget.settingsService.setLastUpdateCheckAt(DateTime.now());
+      if (!mounted || !result.isUpdateAvailable) {
+        return;
+      }
+
+      await showUpdateAvailableDialog(context, result);
+    } catch (_) {
+      await widget.settingsService.setLastUpdateCheckAt(DateTime.now());
     }
   }
 
@@ -777,6 +812,7 @@ class _HomePageState extends State<HomePage> {
         currentLocale: locale,
         onLocaleChanged: widget.onLocaleChanged,
         providerCredentials: _savedProviderCredentials,
+        settingsService: widget.settingsService,
         onDeleteProviderCredential: (provider) async {
           await widget.settingsService.deleteLlmProviderCredential(provider);
           if (!mounted) return;

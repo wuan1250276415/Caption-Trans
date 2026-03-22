@@ -179,7 +179,7 @@ abstract class AppLocalizations {
   /// No description provided for @whisperModel.
   ///
   /// In en, this message translates to:
-  /// **'Whisper Model'**
+  /// **'Model'**
   String get whisperModel;
 
   /// No description provided for @sourceVideoLanguage.
@@ -257,13 +257,13 @@ abstract class AppLocalizations {
   /// No description provided for @preparingRuntime.
   ///
   /// In en, this message translates to:
-  /// **'Preparing WhisperX runtime...'**
+  /// **'Preparing runtime...'**
   String get preparingRuntime;
 
   /// No description provided for @runtimeChecking.
   ///
   /// In en, this message translates to:
-  /// **'Checking WhisperX runtime...'**
+  /// **'Checking runtime...'**
   String get runtimeChecking;
 
   /// No description provided for @runtimeDownloading.
@@ -287,13 +287,13 @@ abstract class AppLocalizations {
   /// No description provided for @runtimeInstallingDependencies.
   ///
   /// In en, this message translates to:
-  /// **'Installing WhisperX dependencies (first run may take a while)...'**
+  /// **'Installing dependencies (first run may take a while)...'**
   String get runtimeInstallingDependencies;
 
   /// No description provided for @runtimeStartingSidecar.
   ///
   /// In en, this message translates to:
-  /// **'Starting WhisperX sidecar...'**
+  /// **'Starting runtime...'**
   String get runtimeStartingSidecar;
 
   /// No description provided for @transcodingAudio.
@@ -595,6 +595,66 @@ abstract class AppLocalizations {
   /// In en, this message translates to:
   /// **'Automatically saved locally after API verification succeeds'**
   String get savedProvidersHint;
+
+  /// No description provided for @appUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Application'**
+  String get appUpdate;
+
+  /// No description provided for @currentVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'Current version'**
+  String get currentVersion;
+
+  /// No description provided for @checkForUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Check for updates'**
+  String get checkForUpdates;
+
+  /// No description provided for @checkingForUpdates.
+  ///
+  /// In en, this message translates to:
+  /// **'Checking for updates...'**
+  String get checkingForUpdates;
+
+  /// No description provided for @updateAvailableTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Update available'**
+  String get updateAvailableTitle;
+
+  /// No description provided for @updateAvailableMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Version {latest} is available. You are currently on {current}.'**
+  String updateAvailableMessage(String latest, String current);
+
+  /// No description provided for @downloadUpdate.
+  ///
+  /// In en, this message translates to:
+  /// **'Download update'**
+  String get downloadUpdate;
+
+  /// No description provided for @alreadyLatestVersion.
+  ///
+  /// In en, this message translates to:
+  /// **'You\'re on the latest version ({version}).'**
+  String alreadyLatestVersion(String version);
+
+  /// No description provided for @updateCheckFailed.
+  ///
+  /// In en, this message translates to:
+  /// **'Failed to check for updates.'**
+  String get updateCheckFailed;
+
+  /// No description provided for @releaseNotes.
+  ///
+  /// In en, this message translates to:
+  /// **'Release notes'**
+  String get releaseNotes;
 }
 
 class _AppLocalizationsDelegate

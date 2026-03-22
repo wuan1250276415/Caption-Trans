@@ -48,7 +48,7 @@ class AppLocalizationsZh extends AppLocalizations {
   String get stepExtractSubtitles => '提取字幕';
 
   @override
-  String get whisperModel => 'Whisper 模型';
+  String get whisperModel => '模型';
 
   @override
   String get sourceVideoLanguage => '源视频语言';
@@ -87,10 +87,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get extract => '提取';
 
   @override
-  String get preparingRuntime => '正在准备 WhisperX 运行时...';
+  String get preparingRuntime => '正在准备运行时...';
 
   @override
-  String get runtimeChecking => '正在检查 WhisperX 运行时...';
+  String get runtimeChecking => '正在检查运行时...';
 
   @override
   String get runtimeDownloading => '正在下载运行时包...';
@@ -102,10 +102,10 @@ class AppLocalizationsZh extends AppLocalizations {
   String get runtimeCreatingEnvironment => '正在创建 Python 环境...';
 
   @override
-  String get runtimeInstallingDependencies => '正在安装 WhisperX 依赖（首次安装需要较长时间）...';
+  String get runtimeInstallingDependencies => '正在安装依赖（首次安装需要较长时间）...';
 
   @override
-  String get runtimeStartingSidecar => '正在启动 WhisperX 侧车...';
+  String get runtimeStartingSidecar => '正在启动运行时...';
 
   @override
   String get transcodingAudio => '正在将媒体转码为音频...';
@@ -267,5 +267,39 @@ class AppLocalizationsZh extends AppLocalizations {
   String get savedProvidersEmpty => '暂无已保存的服务商';
 
   @override
-  String get savedProvidersHint => 'API验证成功后自会动保存到本地';
+  String get savedProvidersHint => 'API验证成功后自动保存到本地';
+
+  @override
+  String get appUpdate => '应用更新';
+
+  @override
+  String get currentVersion => '当前版本';
+
+  @override
+  String get checkForUpdates => '检查更新';
+
+  @override
+  String get checkingForUpdates => '正在检查更新...';
+
+  @override
+  String get updateAvailableTitle => '发现新版本';
+
+  @override
+  String updateAvailableMessage(String latest, String current) {
+    return '发现新版本 $latest，当前版本为 $current。';
+  }
+
+  @override
+  String get downloadUpdate => '下载更新';
+
+  @override
+  String alreadyLatestVersion(String version) {
+    return '当前已是最新版本（$version）。';
+  }
+
+  @override
+  String get updateCheckFailed => '检查更新失败。';
+
+  @override
+  String get releaseNotes => '更新说明';
 }

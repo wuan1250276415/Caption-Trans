@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:caption_trans/l10n/app_localizations.dart';
 import '../../services/settings_service.dart';
+import '../../services/update_service.dart';
+import 'update_dialog.dart';
 
 /// Settings dialog for configuring API keys, language, and preferences.
 class SettingsDialog extends StatefulWidget {
@@ -8,6 +10,7 @@ class SettingsDialog extends StatefulWidget {
   final Locale currentLocale;
   final Map<String, ProviderCredential> providerCredentials;
   final Future<void> Function(String provider) onDeleteProviderCredential;
+  final SettingsService settingsService;
 
   const SettingsDialog({
     super.key,
@@ -15,6 +18,7 @@ class SettingsDialog extends StatefulWidget {
     required this.currentLocale,
     required this.providerCredentials,
     required this.onDeleteProviderCredential,
+    required this.settingsService,
   });
 
   @override
@@ -22,8 +26,12 @@ class SettingsDialog extends StatefulWidget {
 }
 
 class _SettingsDialogState extends State<SettingsDialog> {
+  final UpdateService _updateService = UpdateService();
   late Locale _selectedLocale;
   late Map<String, ProviderCredential> _savedProviderCredentials;
+  String? _currentVersion;
+  bool _isLoadingVersion = true;
+  bool _isCheckingForUpdates = false;
 
   @override
   void initState() {
@@ -32,11 +40,66 @@ class _SettingsDialogState extends State<SettingsDialog> {
     _savedProviderCredentials = Map<String, ProviderCredential>.from(
       widget.providerCredentials,
     );
+    _loadCurrentVersion();
   }
 
   @override
   void dispose() {
+    _updateService.dispose();
     super.dispose();
+  }
+
+  Future<void> _loadCurrentVersion() async {
+    try {
+      final versionInfo = await _updateService.getCurrentVersionInfo();
+      if (!mounted) return;
+      setState(() {
+        _currentVersion = versionInfo.displayVersion;
+        _isLoadingVersion = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _currentVersion = null;
+        _isLoadingVersion = false;
+      });
+    }
+  }
+
+  Future<void> _checkForUpdates() async {
+    if (_isCheckingForUpdates) return;
+
+    final l10n = AppLocalizations.of(context)!;
+    setState(() => _isCheckingForUpdates = true);
+
+    try {
+      final result = await _updateService.checkForUpdates();
+      if (!mounted) return;
+
+      if (result.isUpdateAvailable) {
+        await showUpdateAvailableDialog(context, result);
+      } else {
+        _showSnackBar(
+          l10n.alreadyLatestVersion(result.currentVersion.displayVersion),
+          Colors.green.shade700,
+        );
+      }
+      await widget.settingsService.setLastUpdateCheckAt(DateTime.now());
+    } catch (_) {
+      if (!mounted) return;
+      _showSnackBar(l10n.updateCheckFailed, Colors.red.shade700);
+      await widget.settingsService.setLastUpdateCheckAt(DateTime.now());
+    } finally {
+      if (mounted) {
+        setState(() => _isCheckingForUpdates = false);
+      }
+    }
+  }
+
+  void _showSnackBar(String message, Color backgroundColor) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: backgroundColor),
+    );
   }
 
   @override
@@ -109,6 +172,72 @@ class _SettingsDialogState extends State<SettingsDialog> {
                             ),
                           ),
                         ],
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        l10n.appUpdate,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                          ),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              l10n.currentVersion,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: Colors.white.withValues(alpha: 0.55),
+                                fontWeight: FontWeight.w500,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              _isLoadingVersion
+                                  ? '...'
+                                  : (_currentVersion ?? '-'),
+                              style: theme.textTheme.titleMedium?.copyWith(
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            const SizedBox(height: 12),
+                            SizedBox(
+                              width: double.infinity,
+                              child: OutlinedButton.icon(
+                                onPressed: _isCheckingForUpdates
+                                    ? null
+                                    : _checkForUpdates,
+                                icon: _isCheckingForUpdates
+                                    ? const SizedBox(
+                                        width: 16,
+                                        height: 16,
+                                        child: CircularProgressIndicator(
+                                          strokeWidth: 2,
+                                        ),
+                                      )
+                                    : const Icon(
+                                        Icons.system_update_alt_rounded,
+                                      ),
+                                label: Text(
+                                  _isCheckingForUpdates
+                                      ? l10n.checkingForUpdates
+                                      : l10n.checkForUpdates,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
                       const SizedBox(height: 24),
                       Text(

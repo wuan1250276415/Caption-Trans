@@ -48,7 +48,7 @@ class AppLocalizationsEn extends AppLocalizations {
   String get stepExtractSubtitles => 'Extract Subtitles';
 
   @override
-  String get whisperModel => 'Whisper Model';
+  String get whisperModel => 'Model';
 
   @override
   String get sourceVideoLanguage => 'Source Video Language';
@@ -88,10 +88,10 @@ class AppLocalizationsEn extends AppLocalizations {
   String get extract => 'Extract';
 
   @override
-  String get preparingRuntime => 'Preparing WhisperX runtime...';
+  String get preparingRuntime => 'Preparing runtime...';
 
   @override
-  String get runtimeChecking => 'Checking WhisperX runtime...';
+  String get runtimeChecking => 'Checking runtime...';
 
   @override
   String get runtimeDownloading => 'Downloading runtime package...';
@@ -104,10 +104,10 @@ class AppLocalizationsEn extends AppLocalizations {
 
   @override
   String get runtimeInstallingDependencies =>
-      'Installing WhisperX dependencies (first run may take a while)...';
+      'Installing dependencies (first run may take a while)...';
 
   @override
-  String get runtimeStartingSidecar => 'Starting WhisperX sidecar...';
+  String get runtimeStartingSidecar => 'Starting runtime...';
 
   @override
   String get transcodingAudio => 'Transcoding media to audio...';
@@ -277,4 +277,38 @@ class AppLocalizationsEn extends AppLocalizations {
   @override
   String get savedProvidersHint =>
       'Automatically saved locally after API verification succeeds';
+
+  @override
+  String get appUpdate => 'Application';
+
+  @override
+  String get currentVersion => 'Current version';
+
+  @override
+  String get checkForUpdates => 'Check for updates';
+
+  @override
+  String get checkingForUpdates => 'Checking for updates...';
+
+  @override
+  String get updateAvailableTitle => 'Update available';
+
+  @override
+  String updateAvailableMessage(String latest, String current) {
+    return 'Version $latest is available. You are currently on $current.';
+  }
+
+  @override
+  String get downloadUpdate => 'Download update';
+
+  @override
+  String alreadyLatestVersion(String version) {
+    return 'You\'re on the latest version ($version).';
+  }
+
+  @override
+  String get updateCheckFailed => 'Failed to check for updates.';
+
+  @override
+  String get releaseNotes => 'Release notes';
 }

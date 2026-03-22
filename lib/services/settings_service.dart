@@ -28,6 +28,7 @@ class SettingsService {
   static const String _keyTargetLanguage = 'target_language';
   static const String _keyBilingual = 'bilingual';
   static const String _keyBatchSize = 'batch_size';
+  static const String _keyLastUpdateCheckAt = 'last_update_check_at';
 
   final SharedPreferences _prefs;
 
@@ -73,6 +74,17 @@ class SettingsService {
 
   int get batchSize => _prefs.getInt(_keyBatchSize) ?? 25;
   Future<void> setBatchSize(int value) => _prefs.setInt(_keyBatchSize, value);
+
+  DateTime? get lastUpdateCheckAt {
+    final timestamp = _prefs.getInt(_keyLastUpdateCheckAt);
+    if (timestamp == null || timestamp <= 0) {
+      return null;
+    }
+    return DateTime.fromMillisecondsSinceEpoch(timestamp);
+  }
+
+  Future<void> setLastUpdateCheckAt(DateTime value) =>
+      _prefs.setInt(_keyLastUpdateCheckAt, value.millisecondsSinceEpoch);
 
   Map<String, ProviderCredential> get llmProviderCredentials {
     final raw = _prefs.getString(_keyLlmProviderCredentials);

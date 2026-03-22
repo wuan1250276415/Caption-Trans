@@ -13,7 +13,7 @@
   "changeFile": "更换文件",
   "clear": "清除",
   "stepExtractSubtitles": "提取字幕",
-  "whisperModel": "Whisper 模型",
+  "whisperModel": "模型",
   "sourceVideoLanguage": "源视频语言",
   "sourceVideoLanguageHint": "选取源视频语言可以提高转录效率和准确率",
   "diskUsage": "磁盘",
@@ -26,13 +26,13 @@
   "qualitySuperior": "极佳 (推荐)",
   "qualityBest": "最好",
   "extract": "提取",
-  "preparingRuntime": "正在准备 WhisperX 运行时...",
-  "runtimeChecking": "正在检查 WhisperX 运行时...",
+  "preparingRuntime": "正在准备运行时...",
+  "runtimeChecking": "正在检查运行时...",
   "runtimeDownloading": "正在下载运行时包...",
   "runtimeExtracting": "正在解压运行时包...",
   "runtimeCreatingEnvironment": "正在创建 Python 环境...",
-  "runtimeInstallingDependencies": "正在安装 WhisperX 依赖（首次安装需要较长时间）...",
-  "runtimeStartingSidecar": "正在启动 WhisperX 侧车...",
+  "runtimeInstallingDependencies": "正在安装依赖（首次安装需要较长时间）...",
+  "runtimeStartingSidecar": "正在启动运行时...",
   "transcodingAudio": "正在将媒体转码为音频...",
   "transcribingStatus": "正在转录...",
   "transcriptionLoadingAudio": "正在加载音频...",
@@ -82,5 +82,32 @@
   "clickDetectToFetchModels": "请点击“检测”以获取可用模型",
   "savedProvidersTitle": "已保存的服务商",
   "savedProvidersEmpty": "暂无已保存的服务商",
-  "savedProvidersHint": "API验证成功后自会动保存到本地"
+  "savedProvidersHint": "API验证成功后自动保存到本地",
+  "appUpdate": "应用更新",
+  "currentVersion": "当前版本",
+  "checkForUpdates": "检查更新",
+  "checkingForUpdates": "正在检查更新...",
+  "updateAvailableTitle": "发现新版本",
+  "updateAvailableMessage": "发现新版本 {latest}，当前版本为 {current}。",
+  "@updateAvailableMessage": {
+    "placeholders": {
+      "latest": {
+        "type": "String"
+      },
+      "current": {
+        "type": "String"
+      }
+    }
+  },
+  "downloadUpdate": "下载更新",
+  "alreadyLatestVersion": "当前已是最新版本（{version}）。",
+  "@alreadyLatestVersion": {
+    "placeholders": {
+      "version": {
+        "type": "String"
+      }
+    }
+  },
+  "updateCheckFailed": "检查更新失败。",
+  "releaseNotes": "更新说明"
 }
