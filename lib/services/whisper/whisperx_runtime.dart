@@ -99,6 +99,8 @@ class WhisperXRuntime {
   static const String _venvMarkerFile = '.runtime_ready_v3';
   static const String _managedMarkerFile = '.managed_runtime_v1';
   static const String _targetWhisperxVersion = '3.8.2';
+  static const String _targetTorchVersion = '2.8.0';
+  static const String _targetTorchaudioVersion = '2.8.0';
   static const String _torchCpuIndexUrl =
       'https://download.pytorch.org/whl/cpu';
 
@@ -177,7 +179,8 @@ class WhisperXRuntime {
     onProgress?.call(72);
     final File marker = File(p.join(runtimeDir.path, _venvMarkerFile));
     if (!await _isWhisperxInstalled(venvPythonPath) ||
-        !await _isDependencyMarkerValid(marker, dependencyProfile)) {
+        !await _isDependencyMarkerValid(marker, dependencyProfile) ||
+        !await _isTorchRuntimeCompatible(venvPythonPath, dependencyProfile)) {
       await _installDependencies(
         venvPythonPath,
         dependencyProfile: dependencyProfile,
@@ -189,6 +192,8 @@ class WhisperXRuntime {
         jsonEncode({
           'runtimeVersion': _runtimeVersion,
           'whisperxVersion': _targetWhisperxVersion,
+          'torchVersion': _targetTorchVersion,
+          'torchaudioVersion': _targetTorchaudioVersion,
           'dependencyProfileId': dependencyProfile.id,
           'prefersCuda': dependencyProfile.prefersCuda,
           'torchIndexUrl': dependencyProfile.torchIndexUrl,
@@ -592,6 +597,9 @@ class WhisperXRuntime {
       return (decoded['runtimeVersion'] as String? ?? '') == _runtimeVersion &&
           (decoded['whisperxVersion'] as String? ?? '') ==
               _targetWhisperxVersion &&
+          (decoded['torchVersion'] as String? ?? '') == _targetTorchVersion &&
+          (decoded['torchaudioVersion'] as String? ?? '') ==
+              _targetTorchaudioVersion &&
           (decoded['dependencyProfileId'] as String? ?? '') ==
               dependencyProfile.id &&
           (decoded['torchIndexUrl'] as String?) ==
@@ -864,6 +872,35 @@ class WhisperXRuntime {
     return version == _targetWhisperxVersion;
   }
 
+  Future<bool> _isTorchRuntimeCompatible(
+    String pythonExecutable,
+    _WhisperXDependencyProfile dependencyProfile,
+  ) async {
+    if (!Platform.isWindows || dependencyProfile.torchIndexUrl == null) {
+      return true;
+    }
+
+    final ProcessResult result = await Process.run(pythonExecutable, [
+      '-c',
+      'from importlib import metadata; '
+          'print(metadata.version("torch")); '
+          'print(metadata.version("torchaudio"))',
+    ]);
+    if (result.exitCode != 0) {
+      return false;
+    }
+
+    final List<String> versions = LineSplitter.split(
+      (result.stdout as String).trim(),
+    ).toList();
+    if (versions.length < 2) {
+      return false;
+    }
+
+    return versions[0].startsWith(_targetTorchVersion) &&
+        versions[1].startsWith(_targetTorchaudioVersion);
+  }
+
   Future<void> _installDependencies(
     String pythonExecutable, {
     required _WhisperXDependencyProfile dependencyProfile,
@@ -948,8 +985,8 @@ class WhisperXRuntime {
         'pip',
         'install',
         '--upgrade',
-        'torch',
-        'torchaudio',
+        'torch==$_targetTorchVersion',
+        'torchaudio==$_targetTorchaudioVersion',
         ...torchInstallSourceArgs,
       ],
       errorPrefix: dependencyProfile.prefersCuda
