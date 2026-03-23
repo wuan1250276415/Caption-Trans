@@ -1,10 +1,13 @@
 import 'dart:io';
 
 import '../../models/whisper_runtime_info.dart';
+import '../../models/whisper_download_source.dart';
 import '../../models/subtitle_segment.dart';
 import '../../models/transcription_result.dart';
+import '../settings_service.dart';
 import '../audio/media_to_wav_converter.dart';
 import 'whisperx_sidecar.dart';
+import 'whisperx_runtime.dart';
 
 class _WhisperExecutionConfig {
   final String asrDevice;
@@ -48,10 +51,20 @@ class WhisperService {
   static const String _cpuComputeType = 'int8';
   static const int _cpuBatchSize = 8;
 
+  final SettingsService _settingsService;
   final WhisperXSidecar _sidecar = WhisperXSidecar();
   final MediaToWavConverter _wavConverter = MediaToWavConverter();
 
   String? _currentModel;
+
+  WhisperService({required SettingsService settingsService})
+    : _settingsService = settingsService;
+
+  void _applyDownloadSourceProfile() {
+    final WhisperDownloadSource profile =
+        _settingsService.whisperDownloadSource ?? WhisperDownloadSource.global;
+    WhisperXRuntime.instance.downloadSourceProfile = profile;
+  }
 
   /// Prepare sidecar runtime resources with phase-aware status updates.
   ///
@@ -61,6 +74,7 @@ class WhisperService {
     void Function(int received, int total)? onDownloadProgress,
     void Function(String phase, double? progress)? onPreparationState,
   }) async {
+    _applyDownloadSourceProfile();
     final String? whisperxModel = modelMap[modelName];
     if (whisperxModel == null) {
       throw ArgumentError('Unknown model: $modelName');
@@ -84,6 +98,7 @@ class WhisperService {
   ///
   /// WhisperX model weights are loaded lazily on the first transcribe request.
   Future<void> loadModel(String modelName) async {
+    _applyDownloadSourceProfile();
     final String? whisperxModel = modelMap[modelName];
     if (whisperxModel == null) {
       throw ArgumentError('Unknown model: $modelName');
@@ -124,6 +139,7 @@ class WhisperService {
   }
 
   Future<WhisperRuntimeInfo> inspectRuntime({required String modelName}) async {
+    _applyDownloadSourceProfile();
     final String whisperxModel = modelMap[modelName] ?? modelName;
     final _WhisperExecutionConfig config = await _resolveExecutionConfig(
       whisperxModel,
@@ -139,6 +155,7 @@ class WhisperService {
     void Function(String line)? onLog,
     void Function(WhisperRuntimeInfo info)? onRuntimeInfo,
   }) async {
+    _applyDownloadSourceProfile();
     final _WhisperExecutionConfig primaryConfig = await _resolveExecutionConfig(
       modelName,
     );

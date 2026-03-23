@@ -500,6 +500,84 @@ abstract class AppLocalizations {
   /// **'Settings'**
   String get settingsTitle;
 
+  /// No description provided for @downloadSourceTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Download source'**
+  String get downloadSourceTitle;
+
+  /// No description provided for @downloadSourceHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose which source profile WhisperX should use for runtime, dependency, and model downloads. You can change it later in Settings.'**
+  String get downloadSourceHint;
+
+  /// No description provided for @downloadSourceSectionTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'WhisperX downloads'**
+  String get downloadSourceSectionTitle;
+
+  /// No description provided for @downloadSourceSectionHint.
+  ///
+  /// In en, this message translates to:
+  /// **'Applies to Python runtime, pip dependencies, PyTorch wheels, and model downloads.'**
+  String get downloadSourceSectionHint;
+
+  /// No description provided for @downloadSourcePromptTitle.
+  ///
+  /// In en, this message translates to:
+  /// **'Choose download source'**
+  String get downloadSourcePromptTitle;
+
+  /// No description provided for @downloadSourcePromptMessage.
+  ///
+  /// In en, this message translates to:
+  /// **'Before WhisperX downloads runtime files, dependencies, and models for the first time, choose which source profile to use. You can change this later in Settings.'**
+  String get downloadSourcePromptMessage;
+
+  /// No description provided for @downloadSourceGlobal.
+  ///
+  /// In en, this message translates to:
+  /// **'International source'**
+  String get downloadSourceGlobal;
+
+  /// No description provided for @downloadSourceGlobalDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use official GitHub, PyPI, PyTorch, and Hugging Face sources. Recommended outside mainland China.'**
+  String get downloadSourceGlobalDescription;
+
+  /// No description provided for @downloadSourceChina.
+  ///
+  /// In en, this message translates to:
+  /// **'Mainland China source'**
+  String get downloadSourceChina;
+
+  /// No description provided for @downloadSourceChinaDescription.
+  ///
+  /// In en, this message translates to:
+  /// **'Use mainland mirrors when available for runtime, PyPI, PyTorch, and Hugging Face downloads.'**
+  String get downloadSourceChinaDescription;
+
+  /// No description provided for @downloadSourceUnset.
+  ///
+  /// In en, this message translates to:
+  /// **'Not selected'**
+  String get downloadSourceUnset;
+
+  /// No description provided for @changeDownloadSource.
+  ///
+  /// In en, this message translates to:
+  /// **'Change download source'**
+  String get changeDownloadSource;
+
+  /// No description provided for @downloadSourceUpdated.
+  ///
+  /// In en, this message translates to:
+  /// **'Download source updated.'**
+  String get downloadSourceUpdated;
+
   /// No description provided for @apiKeyHint.
   ///
   /// In en, this message translates to:

@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/whisper_download_source.dart';
+
 class ProviderCredential {
   final String baseUrl;
   final String apiKey;
@@ -29,6 +31,7 @@ class SettingsService {
   static const String _keyBilingual = 'bilingual';
   static const String _keyBatchSize = 'batch_size';
   static const String _keyLastUpdateCheckAt = 'last_update_check_at';
+  static const String _keyWhisperDownloadSource = 'whisper_download_source';
 
   final SharedPreferences _prefs;
 
@@ -85,6 +88,17 @@ class SettingsService {
 
   Future<void> setLastUpdateCheckAt(DateTime value) =>
       _prefs.setInt(_keyLastUpdateCheckAt, value.millisecondsSinceEpoch);
+
+  WhisperDownloadSource? get whisperDownloadSource =>
+      WhisperDownloadSource.tryParse(
+        _prefs.getString(_keyWhisperDownloadSource),
+      );
+
+  Future<void> setWhisperDownloadSource(WhisperDownloadSource value) =>
+      _prefs.setString(_keyWhisperDownloadSource, value.id);
+
+  Future<void> clearWhisperDownloadSource() =>
+      _prefs.remove(_keyWhisperDownloadSource);
 
   Map<String, ProviderCredential> get llmProviderCredentials {
     final raw = _prefs.getString(_keyLlmProviderCredentials);

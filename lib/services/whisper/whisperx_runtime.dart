@@ -7,13 +7,17 @@ import 'package:flutter/services.dart';
 import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
+import '../../models/whisper_download_source.dart';
+
 class WhisperXRuntimeInfo {
   final String pythonExecutable;
   final String workerScriptPath;
+  final Map<String, String> environment;
 
   const WhisperXRuntimeInfo({
     required this.pythonExecutable,
     required this.workerScriptPath,
+    required this.environment,
   });
 }
 
@@ -103,12 +107,24 @@ class WhisperXRuntime {
   static final WhisperXRuntime instance = WhisperXRuntime._();
 
   WhisperXRuntimeInfo? _cachedInfo;
-  String? _cachedDependencyProfileId;
+  String? _cachedRuntimeProfileId;
+  WhisperDownloadSource _downloadSourceProfile = WhisperDownloadSource.global;
 
-  Future<String> resolveCurrentDependencyProfileId() async {
+  WhisperDownloadSource get downloadSourceProfile => _downloadSourceProfile;
+
+  set downloadSourceProfile(WhisperDownloadSource value) {
+    if (_downloadSourceProfile == value) {
+      return;
+    }
+    _downloadSourceProfile = value;
+    _cachedInfo = null;
+    _cachedRuntimeProfileId = null;
+  }
+
+  Future<String> resolveCurrentStartupProfileId() async {
     final _WhisperXDependencyProfile profile =
         await _resolveDependencyProfile();
-    return profile.id;
+    return _buildRuntimeProfileId(profile);
   }
 
   Future<WhisperXRuntimeInfo> ensureReady({
@@ -119,9 +135,9 @@ class WhisperXRuntime {
     onStatus?.call('checking_runtime');
     final _WhisperXDependencyProfile dependencyProfile =
         await _resolveDependencyProfile();
+    final String runtimeProfileId = _buildRuntimeProfileId(dependencyProfile);
 
-    if (_cachedInfo != null &&
-        _cachedDependencyProfileId == dependencyProfile.id) {
+    if (_cachedInfo != null && _cachedRuntimeProfileId == runtimeProfileId) {
       onProgress?.call(100);
       return _cachedInfo!;
     }
@@ -143,6 +159,8 @@ class WhisperXRuntime {
       onDownloadProgress: onDownloadProgress,
       onStatus: onStatus,
     );
+    final Map<String, String> sidecarEnvironment =
+        await _buildSidecarEnvironment(runtimeDir);
 
     onProgress?.call(62);
     final Directory venvDir = Directory(p.join(runtimeDir.path, 'venv'));
@@ -181,11 +199,16 @@ class WhisperXRuntime {
     final info = WhisperXRuntimeInfo(
       pythonExecutable: venvPythonPath,
       workerScriptPath: workerPath,
+      environment: sidecarEnvironment,
     );
     _cachedInfo = info;
-    _cachedDependencyProfileId = dependencyProfile.id;
+    _cachedRuntimeProfileId = runtimeProfileId;
     onProgress?.call(100);
     return info;
+  }
+
+  String _buildRuntimeProfileId(_WhisperXDependencyProfile dependencyProfile) {
+    return '${_downloadSourceProfile.id}:${dependencyProfile.id}';
   }
 
   Future<String> _ensureWorkerScript(Directory runtimeDir) async {
@@ -332,7 +355,7 @@ class WhisperXRuntime {
         p.join(tempDir.path, 'runtime.$archiveExt'),
       );
 
-      await _downloadFile(
+      await _downloadManagedRuntime(
         spec.url,
         archiveFile,
         onProgress: (received, total) {
@@ -570,6 +593,141 @@ class WhisperXRuntime {
     }
   }
 
+  Future<Map<String, String>> _buildSidecarEnvironment(
+    Directory runtimeDir,
+  ) async {
+    final Directory modelCacheDir = Directory(
+      p.join(runtimeDir.path, 'model_cache'),
+    );
+    final Directory asrModelDir = Directory(p.join(modelCacheDir.path, 'asr'));
+    final Directory alignModelDir = Directory(
+      p.join(modelCacheDir.path, 'align'),
+    );
+    final Directory huggingFaceDir = Directory(
+      p.join(modelCacheDir.path, 'huggingface'),
+    );
+    final Directory huggingFaceHubDir = Directory(
+      p.join(huggingFaceDir.path, 'hub'),
+    );
+    final Directory torchDir = Directory(p.join(modelCacheDir.path, 'torch'));
+    final Directory xdgDir = Directory(p.join(modelCacheDir.path, 'xdg'));
+
+    for (final Directory directory in <Directory>[
+      modelCacheDir,
+      asrModelDir,
+      alignModelDir,
+      huggingFaceDir,
+      huggingFaceHubDir,
+      torchDir,
+      xdgDir,
+    ]) {
+      await directory.create(recursive: true);
+    }
+
+    final Map<String, String> environment = <String, String>{
+      'WHISPERX_ASR_MODEL_DIR': asrModelDir.path,
+      'WHISPERX_ALIGN_MODEL_DIR': alignModelDir.path,
+      'HF_HOME': huggingFaceDir.path,
+      'HF_HUB_CACHE': huggingFaceHubDir.path,
+      'TORCH_HOME': torchDir.path,
+      'XDG_CACHE_HOME': xdgDir.path,
+    };
+
+    final String? huggingFaceEndpoint = switch (_downloadSourceProfile) {
+      WhisperDownloadSource.global => null,
+      WhisperDownloadSource.mainlandChina => 'https://hf-mirror.com',
+    };
+    if (huggingFaceEndpoint != null) {
+      environment['HF_ENDPOINT'] = huggingFaceEndpoint;
+    }
+    return environment;
+  }
+
+  Future<void> _downloadManagedRuntime(
+    Uri officialUrl,
+    File output, {
+    void Function(int received, int total)? onProgress,
+  }) async {
+    final List<Uri> candidates = _buildManagedRuntimeCandidates(officialUrl);
+    final List<String> failures = <String>[];
+
+    for (final Uri candidate in candidates) {
+      if (output.existsSync()) {
+        await output.delete();
+      }
+
+      try {
+        await _downloadFile(candidate, output, onProgress: onProgress);
+        return;
+      } catch (error) {
+        failures.add('$candidate -> $error');
+      }
+    }
+
+    throw Exception(
+      'Failed to download managed runtime from all configured sources.\n'
+      '${failures.join('\n')}',
+    );
+  }
+
+  List<Uri> _buildManagedRuntimeCandidates(Uri officialUrl) {
+    if (_downloadSourceProfile != WhisperDownloadSource.mainlandChina) {
+      return <Uri>[officialUrl];
+    }
+
+    final Set<String> seen = <String>{};
+    final List<Uri> urls = <Uri>[];
+    void add(Uri uri) {
+      if (seen.add(uri.toString())) {
+        urls.add(uri);
+      }
+    }
+
+    final List<Uri> mirrors = _githubReleaseMirrorCandidates(officialUrl);
+    for (final Uri mirror in mirrors) {
+      add(mirror);
+    }
+    add(officialUrl);
+    return urls;
+  }
+
+  List<Uri> _githubReleaseMirrorCandidates(Uri officialUrl) {
+    if (officialUrl.host != 'github.com') {
+      return const <Uri>[];
+    }
+
+    final List<String> segments = officialUrl.pathSegments;
+    if (segments.length < 6 ||
+        segments[2] != 'releases' ||
+        segments[3] != 'download') {
+      return const <Uri>[];
+    }
+
+    final String owner = segments[0];
+    final String repo = segments[1];
+    final String tag = segments[4];
+    final List<String> assetSegments = segments.sublist(5);
+
+    Uri buildMirror(String host) {
+      return Uri(
+        scheme: 'https',
+        host: host,
+        pathSegments: <String>[
+          'github-release',
+          owner,
+          repo,
+          tag,
+          ...assetSegments,
+        ],
+      );
+    }
+
+    return <Uri>[
+      buildMirror('mirror.nju.edu.cn'),
+      buildMirror('mirrors.ustc.edu.cn'),
+    ];
+  }
+
   Future<void> _downloadFile(
     Uri url,
     File output, {
@@ -707,19 +865,28 @@ class WhisperXRuntime {
   }) async {
     onStatus?.call('installing_dependencies');
     onProgress?.call(78);
-    await _runOrThrow(pythonExecutable, [
-      '-m',
-      'pip',
-      'install',
-      '--upgrade',
-      'pip',
-    ], errorPrefix: 'Failed to upgrade pip for WhisperX runtime.');
+    final Map<String, String> pipEnvironment = _buildPipEnvironment();
+    final List<String> pipIndexArgs = _buildPipIndexArgs();
+    await _runOrThrow(
+      pythonExecutable,
+      ['-m', 'pip', 'install', '--upgrade', 'pip', ...pipIndexArgs],
+      errorPrefix: 'Failed to upgrade pip for WhisperX runtime.',
+      environment: pipEnvironment,
+    );
 
     onProgress?.call(84);
     await _runOrThrow(
       pythonExecutable,
-      ['-m', 'pip', 'install', 'whisperx==$_targetWhisperxVersion', 'numpy'],
+      [
+        '-m',
+        'pip',
+        'install',
+        ...pipIndexArgs,
+        'whisperx==$_targetWhisperxVersion',
+        'numpy',
+      ],
       errorPrefix: 'Failed to install WhisperX runtime dependencies.',
+      environment: pipEnvironment,
     );
 
     if (Platform.isWindows && dependencyProfile.torchIndexUrl != null) {
@@ -731,6 +898,7 @@ class WhisperXRuntime {
       await _installWindowsTorchRuntime(
         pythonExecutable,
         dependencyProfile: dependencyProfile,
+        environment: pipEnvironment,
       );
     }
 
@@ -740,6 +908,7 @@ class WhisperXRuntime {
   Future<void> _installWindowsTorchRuntime(
     String pythonExecutable, {
     required _WhisperXDependencyProfile dependencyProfile,
+    required Map<String, String> environment,
   }) async {
     await _runBestEffort(pythonExecutable, [
       '-m',
@@ -749,7 +918,11 @@ class WhisperXRuntime {
       'torch',
       'torchaudio',
       'torchvision',
-    ]);
+    ], environment: environment);
+
+    final String torchIndexUrl = _resolveTorchIndexUrl(
+      dependencyProfile.torchIndexUrl!,
+    );
 
     await _runOrThrow(
       pythonExecutable,
@@ -761,17 +934,46 @@ class WhisperXRuntime {
         'torch',
         'torchaudio',
         '--index-url',
-        dependencyProfile.torchIndexUrl!,
+        torchIndexUrl,
       ],
       errorPrefix: dependencyProfile.prefersCuda
           ? 'Failed to install CUDA-enabled PyTorch runtime for WhisperX.'
           : 'Failed to install CPU PyTorch runtime for WhisperX.',
+      environment: environment,
     );
   }
 
-  Future<void> _runBestEffort(String executable, List<String> args) async {
+  Map<String, String> _buildPipEnvironment() {
+    return <String, String>{'PIP_DISABLE_PIP_VERSION_CHECK': '1'};
+  }
+
+  List<String> _buildPipIndexArgs() {
+    return switch (_downloadSourceProfile) {
+      WhisperDownloadSource.global => const <String>[],
+      WhisperDownloadSource.mainlandChina => const <String>[
+        '--index-url',
+        'https://mirrors.ustc.edu.cn/pypi/simple',
+      ],
+    };
+  }
+
+  String _resolveTorchIndexUrl(String indexUrl) {
+    if (_downloadSourceProfile != WhisperDownloadSource.mainlandChina) {
+      return indexUrl;
+    }
+    return indexUrl.replaceFirst(
+      'https://download.pytorch.org/whl',
+      'https://mirrors.aliyun.com/pytorch-wheels',
+    );
+  }
+
+  Future<void> _runBestEffort(
+    String executable,
+    List<String> args, {
+    Map<String, String>? environment,
+  }) async {
     try {
-      await Process.run(executable, args);
+      await Process.run(executable, args, environment: environment);
     } catch (_) {
       return;
     }
@@ -781,8 +983,13 @@ class WhisperXRuntime {
     String executable,
     List<String> args, {
     required String errorPrefix,
+    Map<String, String>? environment,
   }) async {
-    final result = await Process.run(executable, args);
+    final result = await Process.run(
+      executable,
+      args,
+      environment: environment,
+    );
     if (result.exitCode == 0) {
       return;
     }

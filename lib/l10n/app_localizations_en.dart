@@ -225,6 +225,50 @@ class AppLocalizationsEn extends AppLocalizations {
   String get settingsTitle => 'Settings';
 
   @override
+  String get downloadSourceTitle => 'Download source';
+
+  @override
+  String get downloadSourceHint =>
+      'Choose which source profile WhisperX should use for runtime, dependency, and model downloads. You can change it later in Settings.';
+
+  @override
+  String get downloadSourceSectionTitle => 'WhisperX downloads';
+
+  @override
+  String get downloadSourceSectionHint =>
+      'Applies to Python runtime, pip dependencies, PyTorch wheels, and model downloads.';
+
+  @override
+  String get downloadSourcePromptTitle => 'Choose download source';
+
+  @override
+  String get downloadSourcePromptMessage =>
+      'Before WhisperX downloads runtime files, dependencies, and models for the first time, choose which source profile to use. You can change this later in Settings.';
+
+  @override
+  String get downloadSourceGlobal => 'International source';
+
+  @override
+  String get downloadSourceGlobalDescription =>
+      'Use official GitHub, PyPI, PyTorch, and Hugging Face sources. Recommended outside mainland China.';
+
+  @override
+  String get downloadSourceChina => 'Mainland China source';
+
+  @override
+  String get downloadSourceChinaDescription =>
+      'Use mainland mirrors when available for runtime, PyPI, PyTorch, and Hugging Face downloads.';
+
+  @override
+  String get downloadSourceUnset => 'Not selected';
+
+  @override
+  String get changeDownloadSource => 'Change download source';
+
+  @override
+  String get downloadSourceUpdated => 'Download source updated.';
+
+  @override
   String get apiKeyHint => 'Paste your API key here';
 
   @override

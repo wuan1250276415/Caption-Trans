@@ -18,6 +18,8 @@ import '../core/constants.dart';
 import 'package:caption_trans/l10n/app_localizations.dart';
 import '../core/utils/srt_parser.dart';
 import '../models/translation_config.dart';
+import '../models/whisper_download_source.dart';
+import 'widgets/download_source_dialog.dart';
 import 'widgets/video_picker_card.dart';
 import 'widgets/transcription_panel.dart';
 import 'widgets/translation_panel.dart';
@@ -422,12 +424,7 @@ class _HomePageState extends State<HomePage> {
                         onSourceLanguageChanged: (language) =>
                             setState(() => _sourceVideoLanguage = language),
                         onStartTranscription: () {
-                          context.read<TranscriptionBloc>().add(
-                            StartTranscription(
-                              modelName: _selectedModel,
-                              language: _sourceVideoLanguage,
-                            ),
-                          );
+                          _handleStartTranscription(context);
                         },
                       );
                     },
@@ -769,6 +766,41 @@ class _HomePageState extends State<HomePage> {
         context.read<TranslationBloc>().add(const ResetTranslation());
       }
     }
+  }
+
+  Future<bool> _ensureDownloadSourceSelected(BuildContext context) async {
+    final WhisperDownloadSource? saved =
+        widget.settingsService.whisperDownloadSource;
+    if (saved != null) {
+      return true;
+    }
+
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final WhisperDownloadSource? selected = await showDownloadSourceDialog(
+      context,
+      title: l10n.downloadSourcePromptTitle,
+      message: l10n.downloadSourcePromptMessage,
+    );
+    if (selected == null) {
+      return false;
+    }
+
+    await widget.settingsService.setWhisperDownloadSource(selected);
+    return true;
+  }
+
+  Future<void> _handleStartTranscription(BuildContext context) async {
+    final bool ready = await _ensureDownloadSourceSelected(context);
+    if (!ready || !context.mounted) {
+      return;
+    }
+
+    context.read<TranscriptionBloc>().add(
+      StartTranscription(
+        modelName: _selectedModel,
+        language: _sourceVideoLanguage,
+      ),
+    );
   }
 
   Future<void> _exportSrt(

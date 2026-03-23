@@ -203,6 +203,11 @@ def normalize_device(value: Any, default: str = "cpu") -> str:
     return device or default
 
 
+def get_env_path(name: str) -> Optional[str]:
+    value = str(os.environ.get(name) or "").strip()
+    return value or None
+
+
 def to_positive_int(value: Any) -> Optional[int]:
     try:
         parsed = int(value)
@@ -1040,6 +1045,9 @@ class WhisperXWorker:
             )
         if asr_device == "cpu" and cpu_threads is not None:
             load_kwargs["threads"] = cpu_threads
+        download_root = get_env_path("WHISPERX_ASR_MODEL_DIR")
+        if download_root is not None:
+            load_kwargs["download_root"] = download_root
 
         model = whisperx.load_model(
             model_name,
@@ -1065,9 +1073,11 @@ class WhisperXWorker:
         elif device == "mps":
             ensure_mps_available()
 
+        model_dir = get_env_path("WHISPERX_ALIGN_MODEL_DIR")
         model, metadata = whisperx.load_align_model(
             language_code=language,
             device=device,
+            model_dir=model_dir,
         )
         self.align_models[key] = (model, metadata)
         return model, metadata

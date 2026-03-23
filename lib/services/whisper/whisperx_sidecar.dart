@@ -111,28 +111,23 @@ class WhisperXSidecar {
   int _requestSeq = 0;
   String? _activeRequestForLogs;
   Future<WhisperXRuntimeProbe>? _runtimeProbeFuture;
-  String? _startedDependencyProfileId;
+  String? _startedStartupProfileId;
 
   Future<void> ensureStarted({
     void Function(int percent)? onBootstrapProgress,
     void Function(int received, int total)? onRuntimeDownloadProgress,
     void Function(String phase)? onBootstrapStatus,
   }) async {
-    final String? desiredProfileId = Platform.isWindows
-        ? await WhisperXRuntime.instance.resolveCurrentDependencyProfileId()
-        : null;
+    final String desiredProfileId = await WhisperXRuntime.instance
+        .resolveCurrentStartupProfileId();
 
-    if (_process != null &&
-        (desiredProfileId == null ||
-            _startedDependencyProfileId == desiredProfileId)) {
+    if (_process != null && _startedStartupProfileId == desiredProfileId) {
       return;
     }
 
     if (_startFuture != null) {
       await _startFuture;
-      if (_process != null &&
-          (desiredProfileId == null ||
-              _startedDependencyProfileId == desiredProfileId)) {
+      if (_process != null && _startedStartupProfileId == desiredProfileId) {
         return;
       }
     }
@@ -142,7 +137,7 @@ class WhisperXSidecar {
     }
 
     _startFuture = _doStart(
-      expectedDependencyProfileId: desiredProfileId,
+      expectedStartupProfileId: desiredProfileId,
       onBootstrapProgress: onBootstrapProgress,
       onRuntimeDownloadProgress: onRuntimeDownloadProgress,
       onBootstrapStatus: onBootstrapStatus,
@@ -155,7 +150,7 @@ class WhisperXSidecar {
   }
 
   Future<void> _doStart({
-    String? expectedDependencyProfileId,
+    required String expectedStartupProfileId,
     void Function(int percent)? onBootstrapProgress,
     void Function(int received, int total)? onRuntimeDownloadProgress,
     void Function(String phase)? onBootstrapStatus,
@@ -172,14 +167,15 @@ class WhisperXSidecar {
       info.pythonExecutable,
       [info.workerScriptPath],
       workingDirectory: p.dirname(info.workerScriptPath),
-      environment: const <String, String>{
+      environment: <String, String>{
         'PYTHONIOENCODING': 'utf-8',
         'PYTHONUTF8': '1',
+        ...info.environment,
       },
       runInShell: false,
     );
     _process = process;
-    _startedDependencyProfileId = expectedDependencyProfileId;
+    _startedStartupProfileId = expectedStartupProfileId;
 
     _stdoutSub = process.stdout
         .transform(const Utf8Decoder(allowMalformed: true))
@@ -328,7 +324,7 @@ class WhisperXSidecar {
     _pending.clear();
     _activeRequestForLogs = null;
     _runtimeProbeFuture = null;
-    _startedDependencyProfileId = null;
+    _startedStartupProfileId = null;
     _process = null;
   }
 
@@ -468,6 +464,6 @@ class WhisperXSidecar {
     _pending.clear();
     _activeRequestForLogs = null;
     _runtimeProbeFuture = null;
-    _startedDependencyProfileId = null;
+    _startedStartupProfileId = null;
   }
 }

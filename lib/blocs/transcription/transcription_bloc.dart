@@ -2,6 +2,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:path/path.dart' as p;
 
 import '../../models/whisper_runtime_info.dart';
+import '../../services/settings_service.dart';
 import '../../services/whisper/whisper_service.dart';
 import 'transcription_event.dart';
 import 'transcription_state.dart';
@@ -14,9 +15,12 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
 
   final WhisperService _whisperService;
 
-  TranscriptionBloc({WhisperService? whisperService})
-    : _whisperService = whisperService ?? WhisperService(),
-      super(const TranscriptionInitial()) {
+  TranscriptionBloc({
+    required SettingsService settingsService,
+    WhisperService? whisperService,
+  }) : _whisperService =
+           whisperService ?? WhisperService(settingsService: settingsService),
+       super(const TranscriptionInitial()) {
     on<SelectVideo>(_onSelectVideo);
     on<StartTranscription>(_onStartTranscription);
     on<ResetTranscription>(_onReset);

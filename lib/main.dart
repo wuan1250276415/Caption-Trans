@@ -37,7 +37,10 @@ class _CaptionTransAppState extends State<CaptionTransApp> {
     return MultiBlocProvider(
       providers: [
         BlocProvider(create: (_) => ProjectBloc()..add(const LoadProjects())),
-        BlocProvider(create: (_) => TranscriptionBloc()),
+        BlocProvider(
+          create: (_) =>
+              TranscriptionBloc(settingsService: widget.settingsService),
+        ),
         BlocProvider(create: (_) => TranslationBloc()),
       ],
       child: MaterialApp(

@@ -220,6 +220,49 @@ class AppLocalizationsZh extends AppLocalizations {
   String get settingsTitle => '设置';
 
   @override
+  String get downloadSourceTitle => '下载源';
+
+  @override
+  String get downloadSourceHint => '选择 WhisperX 用于下载运行时、依赖和模型的源配置。之后可在设置中修改。';
+
+  @override
+  String get downloadSourceSectionTitle => 'WhisperX 下载';
+
+  @override
+  String get downloadSourceSectionHint =>
+      '用于 Python 运行时、pip 依赖、PyTorch wheels 和模型下载。';
+
+  @override
+  String get downloadSourcePromptTitle => '选择下载源';
+
+  @override
+  String get downloadSourcePromptMessage =>
+      '首次下载 WhisperX 运行时、依赖和模型前，请先选择下载源。之后可在设置中修改。';
+
+  @override
+  String get downloadSourceGlobal => '国际源';
+
+  @override
+  String get downloadSourceGlobalDescription =>
+      '使用官方 GitHub、PyPI、PyTorch 和 Hugging Face 源。更适合中国大陆以外网络环境。';
+
+  @override
+  String get downloadSourceChina => '中国大陆源';
+
+  @override
+  String get downloadSourceChinaDescription =>
+      '优先使用中国大陆可用镜像下载运行时、PyPI、PyTorch 和 Hugging Face 模型。';
+
+  @override
+  String get downloadSourceUnset => '未选择';
+
+  @override
+  String get changeDownloadSource => '更改下载源';
+
+  @override
+  String get downloadSourceUpdated => '下载源已更新。';
+
+  @override
   String get apiKeyHint => '粘贴您的 API Key';
 
   @override

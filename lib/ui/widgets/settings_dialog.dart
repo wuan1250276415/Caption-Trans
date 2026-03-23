@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:caption_trans/l10n/app_localizations.dart';
+import '../../models/whisper_download_source.dart';
 import '../../services/settings_service.dart';
 import '../../services/update_service.dart';
+import 'download_source_dialog.dart';
 import 'update_dialog.dart';
 
 /// Settings dialog for configuring API keys, language, and preferences.
@@ -29,6 +31,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
   final UpdateService _updateService = UpdateService();
   late Locale _selectedLocale;
   late Map<String, ProviderCredential> _savedProviderCredentials;
+  WhisperDownloadSource? _selectedDownloadSource;
   String? _currentVersion;
   bool _isLoadingVersion = true;
   bool _isCheckingForUpdates = false;
@@ -40,6 +43,7 @@ class _SettingsDialogState extends State<SettingsDialog> {
     _savedProviderCredentials = Map<String, ProviderCredential>.from(
       widget.providerCredentials,
     );
+    _selectedDownloadSource = widget.settingsService.whisperDownloadSource;
     _loadCurrentVersion();
   }
 
@@ -100,6 +104,27 @@ class _SettingsDialogState extends State<SettingsDialog> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), backgroundColor: backgroundColor),
     );
+  }
+
+  Future<void> _changeDownloadSource() async {
+    final AppLocalizations l10n = AppLocalizations.of(context)!;
+    final WhisperDownloadSource? selected = await showDownloadSourceDialog(
+      context,
+      initialValue: _selectedDownloadSource,
+      title: l10n.changeDownloadSource,
+      message: l10n.downloadSourceHint,
+    );
+    if (selected == null || !mounted) {
+      return;
+    }
+
+    await widget.settingsService.setWhisperDownloadSource(selected);
+    if (!mounted) {
+      return;
+    }
+
+    setState(() => _selectedDownloadSource = selected);
+    _showSnackBar(l10n.downloadSourceUpdated, Colors.green.shade700);
   }
 
   @override
@@ -235,6 +260,67 @@ class _SettingsDialogState extends State<SettingsDialog> {
                                       : l10n.checkForUpdates,
                                 ),
                               ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
+                      Text(
+                        l10n.downloadSourceSectionTitle,
+                        style: theme.textTheme.bodySmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.6),
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        l10n.downloadSourceSectionHint,
+                        style: theme.textTheme.labelSmall?.copyWith(
+                          color: Colors.white.withValues(alpha: 0.45),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        decoration: BoxDecoration(
+                          color: Colors.white.withValues(alpha: 0.04),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: Colors.white.withValues(alpha: 0.08),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    l10n.downloadSourceTitle,
+                                    style: theme.textTheme.bodySmall?.copyWith(
+                                      color: Colors.white.withValues(
+                                        alpha: 0.55,
+                                      ),
+                                      fontWeight: FontWeight.w500,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Text(
+                                    localizedDownloadSourceLabel(
+                                      l10n,
+                                      _selectedDownloadSource,
+                                    ),
+                                    style: theme.textTheme.titleMedium
+                                        ?.copyWith(fontWeight: FontWeight.w600),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            OutlinedButton(
+                              onPressed: _changeDownloadSource,
+                              child: Text(l10n.changeDownloadSource),
                             ),
                           ],
                         ),
