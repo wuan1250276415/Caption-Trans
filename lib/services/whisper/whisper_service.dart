@@ -17,6 +17,9 @@ class _WhisperExecutionConfig {
   final int batchSize;
   final bool usingGpu;
   final bool usesCuda;
+  /// True when AMD ROCm accelerates VAD/alignment but ASR runs on CPU
+  /// (ctranslate2 does not yet support HIP on Windows).
+  final bool usesRocmMixed;
   final String modeLabel;
   final String? deviceName;
   final String? statusDetail;
@@ -29,6 +32,7 @@ class _WhisperExecutionConfig {
     required this.batchSize,
     required this.usingGpu,
     required this.usesCuda,
+    this.usesRocmMixed = false,
     required this.modeLabel,
     required this.deviceName,
     this.statusDetail,
@@ -214,6 +218,25 @@ class WhisperService {
         );
       }
 
+      if (primaryConfig.usesRocmMixed) {
+        if (!_looksLikeRocmFailure(error)) {
+          rethrow;
+        }
+        await _restartSidecarForRetry();
+        return _transcribeWithConfig(
+          wavPath: wavPath,
+          modelName: modelName,
+          language: language,
+          config: _cpuConfig(
+            statusDetail:
+                'ROCm failed, falling back to CPU ($_cpuComputeType, batch=$_cpuBatchSize)',
+          ),
+          onStatus: onStatus,
+          onLog: onLog,
+          onRuntimeInfo: onRuntimeInfo,
+        );
+      }
+
       if (!primaryConfig.usingGpu || !_looksLikeMpsFailure(error)) {
         rethrow;
       }
@@ -346,29 +369,56 @@ class WhisperService {
     }
 
     final WhisperXRuntimeProbe probe = await _loadRuntimeProbe();
-    if (!probe.canUseCuda) {
-      return _cpuConfig();
+
+    if (probe.canUseCuda) {
+      final String computeType = _selectCudaComputeType(probe.cudaComputeTypes);
+      final int batchSize = _selectCudaBatchSize(whisperxModel);
+      final String deviceName =
+          (probe.cudaDeviceName?.trim().isNotEmpty ?? false)
+          ? probe.cudaDeviceName!.trim()
+          : (probe.isRocm ? 'AMD GPU (ROCm)' : 'CUDA GPU');
+      final String modeLabel = probe.isRocm ? 'ROCm GPU' : 'CUDA GPU';
+
+      return _WhisperExecutionConfig(
+        asrDevice: 'cuda',
+        vadDevice: 'cuda',
+        alignDevice: 'cuda',
+        computeType: computeType,
+        batchSize: batchSize,
+        usingGpu: true,
+        usesCuda: true,
+        modeLabel: modeLabel,
+        deviceName: deviceName,
+        statusDetail:
+            'Using $deviceName on ${probe.isRocm ? "ROCm/HIP" : "CUDA"} ($computeType, batch=$batchSize)',
+      );
     }
 
-    final String computeType = _selectCudaComputeType(probe.cudaComputeTypes);
-    final int batchSize = _selectCudaBatchSize(whisperxModel);
-    final String deviceName = (probe.cudaDeviceName?.trim().isNotEmpty ?? false)
-        ? probe.cudaDeviceName!.trim()
-        : 'CUDA GPU';
+    // ROCm mixed mode: PyTorch (ROCm) handles VAD + alignment; ASR uses CPU
+    // because ctranslate2 does not yet expose HIP support on Windows.
+    if (probe.canUseRocmMixed) {
+      final String deviceName =
+          (probe.cudaDeviceName?.trim().isNotEmpty ?? false)
+          ? probe.cudaDeviceName!.trim()
+          : 'AMD GPU (ROCm)';
+      return _WhisperExecutionConfig(
+        asrDevice: _cpuDevice,
+        vadDevice: 'cuda',
+        alignDevice: 'cuda',
+        computeType: _cpuComputeType,
+        batchSize: _cpuBatchSize,
+        usingGpu: true,
+        usesCuda: false,
+        usesRocmMixed: true,
+        modeLabel: 'Mixed CPU + ROCm',
+        deviceName: deviceName,
+        statusDetail:
+            'Using $deviceName — ROCm for VAD/alignment, CPU for ASR '
+            '($_cpuComputeType, batch=$_cpuBatchSize)',
+      );
+    }
 
-    return _WhisperExecutionConfig(
-      asrDevice: 'cuda',
-      vadDevice: 'cuda',
-      alignDevice: 'cuda',
-      computeType: computeType,
-      batchSize: batchSize,
-      usingGpu: true,
-      usesCuda: true,
-      modeLabel: 'CUDA GPU',
-      deviceName: deviceName,
-      statusDetail:
-          'Using $deviceName on CUDA ($computeType, batch=$batchSize)',
-    );
+    return _cpuConfig();
   }
 
   Future<WhisperXRuntimeProbe> _loadRuntimeProbe() async {
@@ -496,6 +546,28 @@ class WhisperService {
       'insufficient memory',
       'not enough memory',
       'device-side assert',
+      'failed to load library',
+      'dll load failed',
+      // ROCm/HIP errors surfaced through the CUDA compatibility layer
+      'hip',
+      'rocm',
+      'hipblas',
+      'miopen',
+    ].any(lower.contains);
+  }
+
+  bool _looksLikeRocmFailure(Object error) {
+    final String lower = error.toString().toLowerCase();
+    return <String>[
+      'hip',
+      'rocm',
+      'hipblas',
+      'miopen',
+      'amdhip',
+      'cuda',
+      'out of memory',
+      'insufficient memory',
+      'not enough memory',
       'failed to load library',
       'dll load failed',
     ].any(lower.contains);

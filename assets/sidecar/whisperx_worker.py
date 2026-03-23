@@ -1101,6 +1101,9 @@ class WhisperXWorker:
         try:
             payload["torch_version"] = str(getattr(torch, "__version__", ""))
             payload["torch_cuda_version"] = getattr(torch.version, "cuda", None)
+            hip_version = getattr(torch.version, "hip", None)
+            payload["hip_version"] = hip_version
+            payload["is_rocm"] = hip_version is not None
             payload["cuda_available"] = bool(torch.cuda.is_available())
             if payload["cuda_available"]:
                 device_count = int(torch.cuda.device_count())

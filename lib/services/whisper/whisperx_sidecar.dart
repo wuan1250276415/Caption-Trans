@@ -13,6 +13,8 @@ class WhisperXRuntimeProbe {
   final String whisperxVersion;
   final String? torchVersion;
   final String? torchCudaVersion;
+  final String? hipVersion;
+  final bool isRocm;
   final bool mpsBuilt;
   final bool mpsAvailable;
   final bool cudaAvailable;
@@ -33,6 +35,8 @@ class WhisperXRuntimeProbe {
     required this.whisperxVersion,
     required this.torchVersion,
     required this.torchCudaVersion,
+    required this.hipVersion,
+    required this.isRocm,
     required this.mpsBuilt,
     required this.mpsAvailable,
     required this.cudaAvailable,
@@ -48,8 +52,18 @@ class WhisperXRuntimeProbe {
     required this.ctranslate2CudaError,
   });
 
+  /// Full GPU mode: ctranslate2 can use the CUDA/ROCm device for ASR.
   bool get canUseCuda =>
       cudaAvailable && cudaDeviceCount > 0 && cudaComputeTypes.isNotEmpty;
+
+  /// ROCm mixed mode: PyTorch sees the GPU (VAD/alignment) but ctranslate2
+  /// cannot use the HIP device for ASR — ASR falls back to CPU.
+  bool get canUseRocmMixed =>
+      isRocm &&
+      cudaAvailable &&
+      cudaDeviceCount > 0 &&
+      cudaComputeTypes.isEmpty;
+
   bool get canUseMps => mpsBuilt && mpsAvailable;
 
   factory WhisperXRuntimeProbe.fromPayload(Map<String, dynamic> payload) {
@@ -67,6 +81,8 @@ class WhisperXRuntimeProbe {
       whisperxVersion: (payload['whisperx_version'] as String? ?? '').trim(),
       torchVersion: (payload['torch_version'] as String?)?.trim(),
       torchCudaVersion: (payload['torch_cuda_version'] as String?)?.trim(),
+      hipVersion: (payload['hip_version'] as String?)?.trim(),
+      isRocm: payload['is_rocm'] == true,
       mpsBuilt: payload['mps_built'] == true,
       mpsAvailable: payload['mps_available'] == true,
       cudaAvailable: payload['cuda_available'] == true,

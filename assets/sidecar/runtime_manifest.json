@@ -18,6 +18,12 @@
       "sha256": "738f9a7f046405947748558acf7c24a087baf7a7cb68bf791d240c8c942ba2a0",
       "archive_type": "tar.gz",
       "python_relative_path": "python/python.exe"
+    },
+    "windows-x64-py312": {
+      "url": "https://github.com/astral-sh/python-build-standalone/releases/download/20260303/cpython-3.12.13%2B20260303-x86_64-pc-windows-msvc-install_only_stripped.tar.gz",
+      "sha256": "10b7a95b928e551fc78cac665999e1ae1f08fb738b255adb0a8d3b9c2824a9c0",
+      "archive_type": "tar.gz",
+      "python_relative_path": "python/python.exe"
     }
   }
 }
