@@ -91,6 +91,7 @@ class Transcribing extends TranscriptionState {
   final String fileName;
   final TranscribingPhase phase;
   final String? statusDetail;
+  final List<String> logLines;
   final WhisperRuntimeInfo? runtimeInfo;
 
   const Transcribing({
@@ -98,6 +99,7 @@ class Transcribing extends TranscriptionState {
     required this.fileName,
     this.phase = TranscribingPhase.transcribing,
     this.statusDetail,
+    this.logLines = const <String>[],
     this.runtimeInfo,
   });
 
@@ -107,6 +109,7 @@ class Transcribing extends TranscriptionState {
     fileName,
     phase,
     statusDetail,
+    logLines,
     runtimeInfo,
   ];
 }
@@ -134,15 +137,23 @@ class TranscriptionError extends TranscriptionState {
   final String videoPath;
   final String fileName;
   final String message;
+  final List<String> logLines;
   final WhisperRuntimeInfo? runtimeInfo;
 
   const TranscriptionError({
     required this.videoPath,
     required this.fileName,
     required this.message,
+    this.logLines = const <String>[],
     this.runtimeInfo,
   });
 
   @override
-  List<Object?> get props => [videoPath, fileName, message, runtimeInfo];
+  List<Object?> get props => [
+    videoPath,
+    fileName,
+    message,
+    logLines,
+    runtimeInfo,
+  ];
 }

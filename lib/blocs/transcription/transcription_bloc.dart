@@ -9,6 +9,7 @@ import 'transcription_state.dart';
 
 /// BLoC managing the transcription workflow.
 class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
+  static const int _maxRecentLogLines = 8;
   static final RegExp _ansiEscapePattern = RegExp(
     r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])',
   );
@@ -46,6 +47,7 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
 
     String wavPath = videoPath;
     WhisperRuntimeInfo? runtimeInfo;
+    List<String> currentLogLines = const <String>[];
     try {
       // 1) Prepare runtime resources.
       // Only the download phase has determinate progress; install/start phases
@@ -102,13 +104,18 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
             : _normalizeLogLine(detail);
         final WhisperRuntimeInfo? resolvedRuntimeInfo =
             nextRuntimeInfo ?? runtimeInfo;
+        final List<String> resolvedLogLines = normalized == null
+            ? currentLogLines
+            : _appendRecentLogLines(currentLogLines, normalized);
         if (currentPhase == phase &&
             currentDetail == normalized &&
-            runtimeInfo == resolvedRuntimeInfo) {
+            runtimeInfo == resolvedRuntimeInfo &&
+            _sameLogLines(currentLogLines, resolvedLogLines)) {
           return;
         }
         currentPhase = phase;
         currentDetail = normalized;
+        currentLogLines = resolvedLogLines;
         runtimeInfo = resolvedRuntimeInfo;
         if (emit.isDone) return;
         emit(
@@ -117,6 +124,7 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
             fileName: fileName,
             phase: phase,
             statusDetail: normalized,
+            logLines: resolvedLogLines,
             runtimeInfo: runtimeInfo,
           ),
         );
@@ -127,6 +135,7 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
           videoPath: videoPath,
           fileName: fileName,
           phase: currentPhase,
+          logLines: currentLogLines,
           runtimeInfo: runtimeInfo,
         ),
       );
@@ -167,6 +176,7 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
           videoPath: videoPath,
           fileName: fileName,
           message: e.toString(),
+          logLines: currentLogLines,
           runtimeInfo: runtimeInfo,
         ),
       );
@@ -183,6 +193,29 @@ class TranscriptionBloc extends Bloc<TranscriptionEvent, TranscriptionState> {
     if (trimmed.isEmpty) return null;
     // WhisperX/PyTorch logs can be very long; keep status concise in UI.
     return trimmed.length > 140 ? '${trimmed.substring(0, 140)}...' : trimmed;
+  }
+
+  List<String> _appendRecentLogLines(List<String> current, String nextLine) {
+    final List<String> next = List<String>.from(current);
+    if (next.isEmpty || next.last != nextLine) {
+      next.add(nextLine);
+    }
+    if (next.length > _maxRecentLogLines) {
+      next.removeRange(0, next.length - _maxRecentLogLines);
+    }
+    return List<String>.unmodifiable(next);
+  }
+
+  bool _sameLogLines(List<String> left, List<String> right) {
+    if (left.length != right.length) {
+      return false;
+    }
+    for (int index = 0; index < left.length; index++) {
+      if (left[index] != right[index]) {
+        return false;
+      }
+    }
+    return true;
   }
 
   RuntimePreparingPhase _runtimePreparingPhaseFromCode(String phase) {

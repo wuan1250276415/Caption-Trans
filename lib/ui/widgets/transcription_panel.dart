@@ -225,12 +225,11 @@ class TranscriptionPanel extends StatelessWidget {
         TranscribingPhase.aligning => l10n.transcriptionAligning,
         TranscribingPhase.finalizing => l10n.transcriptionFinalizing,
       };
-      final String detail = (s.statusDetail ?? '').trim();
-      final String label = detail.isEmpty ? base : '$base\n$detail';
-      return _buildStatusRow(
+      return _buildStatusWithLogs(
         context,
         icon: Icons.mic_rounded,
-        label: label,
+        label: base,
+        logLines: s.logLines,
         color: Colors.purple,
       );
     }
@@ -257,21 +256,10 @@ class TranscriptionPanel extends StatelessWidget {
 
     if (state is TranscriptionError) {
       final s = state as TranscriptionError;
-      return Row(
-        children: [
-          const Icon(Icons.error_rounded, color: Colors.redAccent, size: 18),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              s.message,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: Colors.redAccent,
-              ),
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-        ],
+      return _buildErrorDetails(
+        context,
+        message: s.message,
+        logLines: s.logLines,
       );
     }
 
@@ -366,6 +354,78 @@ class TranscriptionPanel extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildStatusWithLogs(
+    BuildContext context, {
+    required IconData icon,
+    required String label,
+    required List<String> logLines,
+    required Color color,
+  }) {
+    final List<String> visibleLogLines = logLines.length <= 6
+        ? logLines
+        : logLines.sublist(logLines.length - 6);
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildStatusRow(context, icon: icon, label: label, color: color),
+        if (visibleLogLines.isNotEmpty) ...[
+          const SizedBox(height: 10),
+          Container(
+            width: double.infinity,
+            constraints: const BoxConstraints(maxHeight: 132),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.04),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.08)),
+            ),
+            child: SingleChildScrollView(
+              child: Text(
+                visibleLogLines.join('\n'),
+                style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Colors.white.withValues(alpha: 0.78),
+                  height: 1.35,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildErrorDetails(
+    BuildContext context, {
+    required String message,
+    required List<String> logLines,
+  }) {
+    final ThemeData theme = Theme.of(context);
+    final String combined = logLines.isEmpty
+        ? message
+        : '$message\n\nRecent logs:\n${logLines.join('\n')}';
+
+    return Container(
+      width: double.infinity,
+      constraints: const BoxConstraints(maxHeight: 180),
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.redAccent.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: Colors.redAccent.withValues(alpha: 0.24)),
+      ),
+      child: SingleChildScrollView(
+        child: Text(
+          combined,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: Colors.redAccent,
+            height: 1.35,
+          ),
+        ),
+      ),
     );
   }
 
