@@ -8,6 +8,7 @@ import 'package:path/path.dart' as p;
 import 'package:path_provider/path_provider.dart';
 
 import '../../models/whisper_download_source.dart';
+import 'windows_rocm_support.dart';
 
 class WhisperXRuntimeInfo {
   final String pythonExecutable;
@@ -109,15 +110,8 @@ class WhisperXRuntime {
   static const String _targetTorchaudioVersion = '2.8.0';
   static const String _torchCpuIndexUrl =
       'https://download.pytorch.org/whl/cpu';
-
-  // ROCm (AMD GPU) on Windows — requires Python 3.12 and separate wheel repo.
-  static const String _targetRocmTorchVersion = '2.9.1';
-  static const String _targetRocmTorchaudioVersion = '2.9.1';
-  static const String _rocmSdkVersion = '7.2.0.dev0';
-  static const String _rocmSdkDate = 'rocmsdk20260116';
-  static const String _rocmWheelBaseUrl =
-      'https://repo.radeon.com/rocm/windows/rocm-rel-7.2';
-  static const String _rocmManagedPythonKey = 'windows-x64-py312';
+  static const WindowsRocmInstallSpec _windowsRocmInstallSpec =
+      WindowsRocmInstallSpec.current;
 
   WhisperXRuntime._();
 
@@ -503,12 +497,12 @@ class WhisperXRuntime {
 
     // 2. Fall back to AMD ROCm when a Radeon GPU is present.
     if (await _detectWindowsAmdGpu()) {
-      return const _WhisperXDependencyProfile(
-        id: 'windows-rocm72',
+      return _WhisperXDependencyProfile(
+        id: _windowsRocmInstallSpec.dependencyProfileId,
         prefersCuda: false,
         prefersRocm: true,
-        torchIndexUrl: _rocmWheelBaseUrl,
-        managedPythonRuntimeKey: _rocmManagedPythonKey,
+        torchIndexUrl: _windowsRocmInstallSpec.releaseBaseUrl,
+        managedPythonRuntimeKey: _windowsRocmInstallSpec.managedPythonRuntimeKey,
       );
     }
 
@@ -521,19 +515,42 @@ class WhisperXRuntime {
   }
 
   /// Returns true when an AMD Radeon GPU is found in the system.
-  /// Uses WMI so it works without any AMD driver installed upfront.
+  /// Tries WMIC first, then PowerShell CIM as a fallback on newer Windows.
   Future<bool> _detectWindowsAmdGpu() async {
     if (!Platform.isWindows) return false;
+
+    for (final List<String> command in const <List<String>>[
+      <String>['wmic', 'path', 'win32_VideoController', 'get', 'name', '/format:value'],
+      <String>[
+        'powershell.exe',
+        '-NoProfile',
+        '-Command',
+        'Get-CimInstance Win32_VideoController | Select-Object -ExpandProperty Name',
+      ],
+    ]) {
+      final String? output = await _runWindowsGpuProbeCommand(command);
+      if (output != null && containsWindowsAmdGpuName(output)) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  Future<String?> _runWindowsGpuProbeCommand(List<String> command) async {
     try {
       final ProcessResult result = await Process.run(
-        'wmic',
-        ['path', 'win32_VideoController', 'get', 'name', '/format:value'],
+        command.first,
+        command.sublist(1),
       );
-      if (result.exitCode != 0) return false;
-      final String output = (result.stdout as String).toLowerCase();
-      return output.contains('radeon');
+      if (result.exitCode != 0) {
+        return null;
+      }
+
+      final String output = '${result.stdout}\n${result.stderr}'.trim();
+      return output.isEmpty ? null : output;
     } catch (_) {
-      return false;
+      return null;
     }
   }
 
@@ -1073,36 +1090,38 @@ class WhisperXRuntime {
   }) async {
     await _runBestEffort(
       pythonExecutable,
-      ['-m', 'pip', 'uninstall', '-y', 'torch', 'torchaudio', 'torchvision'],
+      [
+        '-m',
+        'pip',
+        'uninstall',
+        '-y',
+        ..._windowsRocmInstallSpec.packagesToUninstall,
+      ],
       environment: environment,
     );
 
-    onLog?.call('Installing ROCm $_rocmSdkVersion SDK for Windows...');
+    onLog?.call(
+      'Installing ${_windowsRocmInstallSpec.displayName} SDK for Windows...',
+    );
     await _runOrThrow(
       pythonExecutable,
-      [
-        '-m', 'pip', 'install',
-        '$_rocmWheelBaseUrl/rocm_sdk_core-$_rocmSdkVersion-py3-none-win_amd64.whl',
-        '$_rocmWheelBaseUrl/rocm_sdk_devel-$_rocmSdkVersion-py3-none-win_amd64.whl',
-        '$_rocmWheelBaseUrl/rocm_sdk_libraries_custom-$_rocmSdkVersion-py3-none-win_amd64.whl',
-      ],
+      ['-m', 'pip', 'install', ..._windowsRocmInstallSpec.buildSdkWheelUrls()],
       errorPrefix: 'Failed to install ROCm SDK for WhisperX.',
       environment: environment,
       onLog: onLog,
     );
 
     onLog?.call(
-      'Installing ROCm PyTorch $_targetRocmTorchVersion'
-      ' ($_rocmSdkDate)...',
+      'Installing ROCm PyTorch ${_windowsRocmInstallSpec.torchVersion}'
+      ' (${_windowsRocmInstallSpec.torchBuildTag})...',
     );
     await _runOrThrow(
       pythonExecutable,
       [
-        '-m', 'pip', 'install',
-        '$_rocmWheelBaseUrl/torch-$_targetRocmTorchVersion%2B$_rocmSdkDate'
-            '-cp312-cp312-win_amd64.whl',
-        '$_rocmWheelBaseUrl/torchaudio-$_targetRocmTorchaudioVersion%2B$_rocmSdkDate'
-            '-cp312-cp312-win_amd64.whl',
+        '-m',
+        'pip',
+        'install',
+        ..._windowsRocmInstallSpec.buildTorchWheelUrls(),
       ],
       errorPrefix: 'Failed to install ROCm PyTorch for WhisperX.',
       environment: environment,
@@ -1113,11 +1132,13 @@ class WhisperXRuntime {
   // ── Version helpers ──────────────────────────────────────────────────────
 
   String _torchVersionForProfile(_WhisperXDependencyProfile profile) =>
-      profile.prefersRocm ? _targetRocmTorchVersion : _targetTorchVersion;
+      profile.prefersRocm
+      ? _windowsRocmInstallSpec.torchVersion
+      : _targetTorchVersion;
 
   String _torchaudioVersionForProfile(_WhisperXDependencyProfile profile) =>
       profile.prefersRocm
-      ? _targetRocmTorchaudioVersion
+      ? _windowsRocmInstallSpec.torchaudioVersion
       : _targetTorchaudioVersion;
 
   /// Returns the venv directory name for the given profile.
